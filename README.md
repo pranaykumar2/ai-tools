@@ -2,6 +2,8 @@
 
 A modern, responsive website showcasing AI tools with a contact form backend built with Node.js and Express.
 
+🔗 **Repository**: [https://github.com/pranaykumar2/ai-tools](https://github.com/pranaykumar2/ai-tools)
+
 ## Features
 
 - 🎨 Modern, responsive design
@@ -10,6 +12,7 @@ A modern, responsive website showcasing AI tools with a contact form backend bui
 - 🎥 Video hero section support
 - ⚡ Fast loading with optimized assets
 - 🔒 Secure form handling with validation
+- 🚀 Ready for Vercel deployment
 
 ## Project Structure
 
@@ -103,6 +106,10 @@ The contact form uses Nodemailer with Gmail. You can easily switch to other emai
 
 ## Deployment
 
+### 🚀 Quick Deploy to Vercel
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/pranaykumar2/ai-tools&env=EMAIL_USER,EMAIL_PASS,CONTACT_EMAIL)
+
 ### Vercel (Recommended)
 
 #### Prerequisites:
@@ -116,7 +123,14 @@ The contact form uses Nodemailer with Gmail. You can easily switch to other emai
    vercel login
    ```
 
-2. **Set Environment Variables:**
+2. **Clone and Deploy:**
+   ```bash
+   git clone https://github.com/pranaykumar2/ai-tools.git
+   cd ai-tools
+   vercel
+   ```
+
+3. **Set Environment Variables:**
    In your Vercel dashboard or via CLI:
    ```bash
    vercel env add EMAIL_USER
@@ -124,11 +138,7 @@ The contact form uses Nodemailer with Gmail. You can easily switch to other emai
    vercel env add CONTACT_EMAIL
    ```
 
-3. **Deploy:**
-   ```bash
-   npm run deploy
-   ```
-   Or simply:
+4. **Deploy to Production:**
    ```bash
    vercel --prod
    ```
