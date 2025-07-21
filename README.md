@@ -46,9 +46,9 @@ cp .env.example .env
 
 Edit `.env` file:
 ```env
-EMAIL_USER=iamcyberjunkie@gmail.com
-EMAIL_PASS=ohipokfvubmrbvnp
-CONTACT_EMAIL=ypranaykumar1002@gmail.com
+EMAIL_USER=your-email@gmail.com
+EMAIL_PASS=your-app-password
+CONTACT_EMAIL=your-contact-email@gmail.com
 PORT=3000
 ```
 
