@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contribute a Tool | AITools</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined">
+    <link rel="stylesheet" href="css/contribute.css">
+</head>
+<body>
+    <!-- App Container -->
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-left">
+                <a href="index.html" class="app-logo">
+                    AI<span>Tools</span>
+                </a>
+            </div>
+            
+            <div class="header-right">
+                <a href="list-tools.html" class="header-btn back-btn">
+                    <span class="material-icons-outlined">arrow_back</span>
+                    <span class="btn-text">Back to Tools</span>
+                </a>
+                <a href="reels.html" class="header-btn reels-btn">
+                    <span class="material-icons-outlined">video_library</span>
+                    <span class="btn-text">Reels</span>
+                </a>
+            </div>
+        </header>
+        
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <div class="contribute-container">
+                <div class="contribute-header">
+                    <h1>Contribute a New AI Tool</h1>
+                    <p>Share an amazing AI tool with the community. All submissions are reviewed before publishing.</p>
+                </div>
+                
+                <form id="contribute-form" class="contribute-form">
+                    <!-- Basic Info Section -->
+                    <div class="form-section">
+                        <h2 class="section-title">
+                            <span class="material-icons-outlined">info</span>
+                            Basic Information
+                        </h2>
+                        
+                        <div class="form-group">
+                            <label for="tool-name">Tool Name *</label>
+                            <input type="text" id="tool-name" name="name" required 
+                                placeholder="Enter the name of the AI tool">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="tool-description">Description *</label>
+                            <textarea id="tool-description" name="description" rows="4" required 
+                                placeholder="Describe what this tool does and what problems it solves"></textarea>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="tool-url">Website URL *</label>
+                            <input type="url" id="tool-url" name="url" required 
+                                placeholder="https://example.com">
+                        </div>
+                    </div>
+                    
+                    <!-- Category & Details Section -->
+                    <div class="form-section">
+                        <h2 class="section-title">
+                            <span class="material-icons-outlined">category</span>
+                            Category & Details
+                        </h2>
+                        
+                        <div class="form-group">
+                            <label for="tool-category">Category *</label>
+                            <select id="tool-category" name="category" required>
+                                <option value="" disabled selected>Select a category</option>
+                                <option value="Productivity">Productivity</option>
+                                <option value="Design">Design</option>
+                                <option value="Writing">Writing</option>
+                                <option value="Education">Education</option>
+                                <option value="Research">Research</option>
+                                <option value="Development">Development</option>
+                                <option value="Marketing">Marketing</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group" id="other-category-group" style="display: none;">
+                            <label for="other-category">Specify Category *</label>
+                            <input type="text" id="other-category" name="otherCategory" 
+                                placeholder="Enter a category name">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="tool-pricing">Pricing Model *</label>
+                            <select id="tool-pricing" name="pricing" required>
+                                <option value="" disabled selected>Select pricing model</option>
+                                <option value="free">Free</option>
+                                <option value="freemium">Freemium</option>
+                                <option value="paid">Paid</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Features (Select all that apply)</label>
+                            <div class="checkbox-group">
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="feature-api" name="features" value="API Access">
+                                    <label for="feature-api">API Access</label>
+                                </div>
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="feature-mobile" name="features" value="Mobile App">
+                                    <label for="feature-mobile">Mobile App</label>
+                                </div>
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="feature-integrations" name="features" value="Integrations">
+                                    <label for="feature-integrations">Integrations</label>
+                                </div>
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="feature-offline" name="features" value="Offline Mode">
+                                    <label for="feature-offline">Offline Mode</label>
+                                </div>
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="feature-collaboration" name="features" value="Team Collaboration">
+                                    <label for="feature-collaboration">Team Collaboration</label>
+                                </div>
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="feature-analytics" name="features" value="Analytics">
+                                    <label for="feature-analytics">Analytics</label>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="tool-tags">Tags (Comma-separated)</label>
+                            <input type="text" id="tool-tags" name="tags" 
+                                placeholder="E.g., Content Creation, SEO, Image Generation">
+                            <div class="tags-preview" id="tags-preview"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- Media Section -->
+                    <div class="form-section">
+                        <h2 class="section-title">
+                            <span class="material-icons-outlined">image</span>
+                            Media
+                        </h2>
+                        
+                        <div class="form-group">
+                            <label for="tool-image">Tool Screenshot or Logo *</label>
+                            <div class="image-upload-container">
+                                <div class="image-upload-area" id="image-upload-area">
+                                    <span class="material-icons-outlined">cloud_upload</span>
+                                    <p>Drag & drop an image here or click to browse</p>
+                                    <p class="upload-note">Recommended: 800×450px (16:9), JPG or PNG</p>
+                                </div>
+                                <input type="file" id="tool-image" name="image" accept="image/*" hidden>
+                                <div class="image-preview" id="image-preview" style="display: none;">
+                                    <img id="preview-img" src="#" alt="Preview">
+                                    <button type="button" id="remove-image" class="remove-image-btn">
+                                        <span class="material-icons-outlined">close</span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="image-url-option">Or provide an image URL:</label>
+                                <input type="url" id="image-url" name="imageUrl" 
+                                    placeholder="https://example.com/image.jpg">
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="reel-url">Instagram Reel URL (Optional)</label>
+                            <input type="url" id="reel-url" name="reelUrl" 
+                                placeholder="https://www.instagram.com/reel/...">
+                            <p class="help-text">Share a reel that demonstrates this tool in action</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Submitter Info Section -->
+                    <div class="form-section">
+                        <h2 class="section-title">
+                            <span class="material-icons-outlined">person</span>
+                            Your Information
+                        </h2>
+                        
+                        <div class="form-group">
+                            <label for="submitter-name">Your Name *</label>
+                            <input type="text" id="submitter-name" name="submitterName" required 
+                                placeholder="Your name">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="submitter-email">Your Email *</label>
+                            <input type="email" id="submitter-email" name="submitterEmail" required 
+                                placeholder="your.email@example.com">
+                            <p class="help-text">We'll contact you if we need more information</p>
+                        </div>
+                        
+                        <div class="form-group checkbox-item">
+                            <input type="checkbox" id="terms-agree" name="termsAgree" required>
+                            <label for="terms-agree">I confirm that this information is accurate and I have the right to share it</label>
+                        </div>
+                    </div>
+                    
+                    <div class="form-actions">
+                        <button type="button" id="cancel-btn" class="btn btn-secondary">Cancel</button>
+                        <button type="submit" id="submit-btn" class="btn btn-primary">
+                            <span class="material-icons-outlined">add_circle</span>
+                            Submit Tool
+                        </button>
+                    </div>
+                </form>
+                
+                <!-- Success Message (Hidden by default) -->
+                <div class="success-message" id="success-message" style="display: none;">
+                    <span class="material-icons-outlined">check_circle</span>
+                    <h2>Thank You!</h2>
+                    <p>Your submission has been received and is being reviewed by our team.</p>
+                    <div class="success-actions">
+                        <a href="list-tools.html" class="btn btn-secondary">Back to Tools</a>
+                        <button type="button" id="submit-another-btn" class="btn btn-primary">Submit Another Tool</button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <!-- Supabase Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Scripts -->
+    <script src="js/contribute.js"></script>
+</body>
+</html>

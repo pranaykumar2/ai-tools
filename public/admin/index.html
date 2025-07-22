@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard | AITools</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined">
+    <link rel="stylesheet" href="../css/admin.css">
+</head>
+<body>
+    <!-- App Container -->
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="admin-sidebar">
+            <div class="sidebar-header">
+                <a href="../index.html" class="app-logo">
+                    AI<span>Tools</span>
+                </a>
+                <button class="close-sidebar-btn" id="close-sidebar" aria-label="Close Sidebar">
+                    <span class="material-icons-outlined">close</span>
+                </button>
+            </div>
+            
+            <div class="admin-menu">
+                <h3 class="menu-title">DASHBOARD</h3>
+                <ul class="menu-items">
+                    <li class="menu-item active">
+                        <a href="index.html">
+                            <span class="material-icons-outlined">dashboard</span>
+                            Overview
+                        </a>
+                    </li>
+                    <li class="menu-item">
+                        <a href="submissions.html">
+                            <span class="material-icons-outlined">inbox</span>
+                            Submissions
+                            <span class="badge" id="submissions-badge">0</span>
+                        </a>
+                    </li>
+                    <li class="menu-item">
+                        <a href="tools.html">
+                            <span class="material-icons-outlined">apps</span>
+                            All Tools
+                        </a>
+                    </li>
+                    <li class="menu-item">
+                        <a href="reels.html">
+                            <span class="material-icons-outlined">video_library</span>
+                            Reels
+                        </a>
+                    </li>
+                </ul>
+                
+                <h3 class="menu-title">MANAGEMENT</h3>
+                <ul class="menu-items">
+                    <li class="menu-item">
+                        <a href="categories.html">
+                            <span class="material-icons-outlined">category</span>
+                            Categories
+                        </a>
+                    </li>
+                    <li class="menu-item">
+                        <a href="features.html">
+                            <span class="material-icons-outlined">auto_awesome</span>
+                            Features
+                        </a>
+                    </li>
+                    <li class="menu-item">
+                        <a href="users.html">
+                            <span class="material-icons-outlined">people</span>
+                            Users
+                        </a>
+                    </li>
+                </ul>
+                
+                <h3 class="menu-title">SETTINGS</h3>
+                <ul class="menu-items">
+                    <li class="menu-item">
+                        <a href="settings.html">
+                            <span class="material-icons-outlined">settings</span>
+                            Site Settings
+                        </a>
+                    </li>
+                    <li class="menu-item">
+                        <a href="profile.html">
+                            <span class="material-icons-outlined">account_circle</span>
+                            My Account
+                        </a>
+                    </li>
+                </ul>
+            </div>
+            
+            <div class="sidebar-footer">
+                <a href="../index.html" class="view-site-btn">
+                    <span class="material-icons-outlined">public</span>
+                    View Site
+                </a>
+                <button class="logout-btn" id="logout-btn">
+                    <span class="material-icons-outlined">logout</span>
+                    Logout
+                </button>
+            </div>
+        </aside>
+        
+        <!-- Main Content -->
+        <main class="admin-main">
+            <!-- Header -->
+            <header class="admin-header">
+                <div class="header-left">
+                    <button class="toggle-sidebar-btn" id="toggle-sidebar" aria-label="Toggle Sidebar">
+                        <span class="material-icons-outlined">menu</span>
+                    </button>
+                    <h1 class="page-title">Dashboard</h1>
+                </div>
+                
+                <div class="header-right">
+                    <div class="admin-search">
+                        <span class="material-icons-outlined">search</span>
+                        <input type="text" placeholder="Search..." id="admin-search-input">
+                    </div>
+                    
+                    <div class="admin-notifications">
+                        <button class="notification-btn" id="notification-btn" aria-label="Notifications">
+                            <span class="material-icons-outlined">notifications</span>
+                            <span class="badge" id="notification-badge">3</span>
+                        </button>
+                        <div class="notification-dropdown" id="notification-dropdown">
+                            <div class="notification-header">
+                                <h3>Notifications</h3>
+                                <button class="mark-all-read" id="mark-all-read">Mark all as read</button>
+                            </div>
+                            <div class="notification-list">
+                                <div class="notification-item unread">
+                                    <span class="material-icons-outlined notification-icon">add_circle</span>
+                                    <div class="notification-content">
+                                        <p>New tool submission: <strong>AI Text Generator</strong></p>
+                                        <span class="notification-time">10 minutes ago</span>
+                                    </div>
+                                </div>
+                                <div class="notification-item unread">
+                                    <span class="material-icons-outlined notification-icon">comment</span>
+                                    <div class="notification-content">
+                                        <p>New review for <strong>DesignAI</strong></p>
+                                        <span class="notification-time">2 hours ago</span>
+                                    </div>
+                                </div>
+                                <div class="notification-item unread">
+                                    <span class="material-icons-outlined notification-icon">add_circle</span>
+                                    <div class="notification-content">
+                                        <p>New tool submission: <strong>Code Assistant Pro</strong></p>
+                                        <span class="notification-time">Yesterday</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="notification-footer">
+                                <a href="notifications.html">View all notifications</a>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="admin-profile">
+                        <button class="profile-btn" id="profile-btn">
+                            <img src="../uploads/admin-avatar.jpg" alt="Admin" class="avatar">
+                            <span class="admin-name">Pranay Kumar</span>
+                            <span class="material-icons-outlined">arrow_drop_down</span>
+                        </button>
+                        <div class="profile-dropdown" id="profile-dropdown">
+                            <ul>
+                                <li>
+                                    <a href="profile.html">
+                                        <span class="material-icons-outlined">account_circle</span>
+                                        My Profile
+                                    </a>
+                                </li>
+                                <li>
+                                    <a href="settings.html">
+                                        <span class="material-icons-outlined">settings</span>
+                                        Settings
+                                    </a>
+                                </li>
+                                <li class="divider"></li>
+                                <li>
+                                    <button id="logout-dropdown-btn">
+                                        <span class="material-icons-outlined">logout</span>
+                                        Logout
+                                    </button>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </header>
+            
+            <!-- Content Area -->
+            <div class="admin-content">
+                <!-- Stats Cards -->
+                <div class="stats-grid">
+                    <div class="stats-card">
+                        <div class="stats-icon">
+                            <span class="material-icons-outlined">apps</span>
+                        </div>
+                        <div class="stats-info">
+                            <h3>Total Tools</h3>
+                            <p class="stats-number" id="total-tools-count">0</p>
+                        </div>
+                        <div class="stats-trend positive">
+                            <span class="material-icons-outlined">arrow_upward</span>
+                            <span>15%</span>
+                        </div>
+                    </div>
+                    
+                    <div class="stats-card">
+                        <div class="stats-icon">
+                            <span class="material-icons-outlined">inbox</span>
+                        </div>
+                        <div class="stats-info">
+                            <h3>Pending Submissions</h3>
+                            <p class="stats-number" id="pending-submissions-count">0</p>
+                        </div>
+                        <div class="stats-trend negative">
+                            <span class="material-icons-outlined">arrow_downward</span>
+                            <span>5%</span>
+                        </div>
+                    </div>
+                    
+                    <div class="stats-card">
+                        <div class="stats-icon">
+                            <span class="material-icons-outlined">star</span>
+                        </div>
+                        <div class="stats-info">
+                            <h3>Avg. Rating</h3>
+                            <p class="stats-number" id="avg-rating">0</p>
+                        </div>
+                        <div class="stats-trend positive">
+                            <span class="material-icons-outlined">arrow_upward</span>
+                            <span>8%</span>
+                        </div>
+                    </div>
+                    
+                    <div class="stats-card">
+                        <div class="stats-icon">
+                            <span class="material-icons-outlined">people</span>
+                        </div>
+                        <div class="stats-info">
+                            <h3>Contributors</h3>
+                            <p class="stats-number" id="contributors-count">0</p>
+                        </div>
+                        <div class="stats-trend positive">
+                            <span class="material-icons-outlined">arrow_upward</span>
+                            <span>12%</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Recent Submissions -->
+                <div class="admin-panel">
+                    <div class="panel-header">
+                        <h2>Recent Submissions</h2>
+                        <a href="submissions.html" class="view-all-btn">View All</a>
+                    </div>
+                    <div class="panel-content">
+                        <table class="admin-table">
+                            <thead>
+                                <tr>
+                                    <th>Tool Name</th>
+                                    <th>Category</th>
+                                    <th>Submitted By</th>
+                                    <th>Date</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="recent-submissions-table">
+                                <!-- Submission rows will be loaded dynamically -->
+                                <tr class="loading-row">
+                                    <td colspan="6">
+                                        <div class="loading-indicator">
+                                            <div class="loader"></div>
+                                            <p>Loading submissions...</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <!-- Statistics Grid -->
+                <div class="admin-grid">
+                    <!-- Category Distribution -->
+                    <div class="admin-panel">
+                        <div class="panel-header">
+                            <h2>Categories Distribution</h2>
+                        </div>
+                        <div class="panel-content">
+                            <div class="chart-container" id="categories-chart">
+                                <!-- Chart will be rendered here -->
+                                <div class="chart-placeholder">
+                                    <span class="material-icons-outlined">pie_chart</span>
+                                    <p>Loading chart...</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Popular Tools -->
+                    <div class="admin-panel">
+                        <div class="panel-header">
+                            <h2>Popular Tools</h2>
+                            <a href="tools.html" class="view-all-btn">View All</a>
+                        </div>
+                        <div class="panel-content">
+                            <div class="popular-tools-list" id="popular-tools-list">
+                                <!-- Popular tools will be loaded dynamically -->
+                                <div class="loading-indicator">
+                                    <div class="loader"></div>
+                                    <p>Loading popular tools...</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <!-- Scripts -->
+    <!-- Supabase Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
+    <script src="../js/admin.js"></script>
+</body>
+</html>

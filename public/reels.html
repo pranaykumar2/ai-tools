@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Tools Reels | AITools</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined">
+    <link rel="stylesheet" href="css/reels.css">
+</head>
+<body>
+    <!-- App Container -->
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-left">
+                <a href="index.html" class="app-logo">
+                    AI<span>Tools</span>
+                </a>
+            </div>
+            
+            <div class="header-right">
+                <a href="list-tools.html" class="header-btn tools-btn">
+                    <span class="material-icons-outlined">apps</span>
+                    <span class="btn-text">All Tools</span>
+                </a>
+                <a href="contribute.html" class="header-btn contribute-btn">
+                    <span class="material-icons-outlined">add_circle</span>
+                    <span class="btn-text">Contribute</span>
+                </a>
+            </div>
+        </header>
+        
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <div class="reels-container">
+                <div class="reels-header">
+                    <h1>AI Tools Reels</h1>
+                    <p>Watch demonstrations of AI tools in action</p>
+                </div>
+                
+                <!-- Reels Grid -->
+                <div class="reels-grid" id="reels-grid">
+                    <!-- Loading state -->
+                    <div class="loading-state" id="loading-state">
+                        <div class="loader"></div>
+                        <h2>Loading Reels</h2>
+                        <p>Please wait while we fetch the latest reels...</p>
+                    </div>
+                    
+                    <!-- Empty state (will be shown if no reels are found) -->
+                    <div class="empty-state" id="empty-state" style="display: none;">
+                        <span class="material-icons-outlined">videocam_off</span>
+                        <h2>No reels found</h2>
+                        <p>Be the first to contribute a tool demonstration!</p>
+                        <a href="contribute.html" class="btn">Contribute a Reel</a>
+                    </div>
+                    
+                    <!-- Reels will be dynamically loaded here -->
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <!-- Reel Modal -->
+    <div class="modal" id="reel-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modal-title">Tool Name</h2>
+                <button id="close-modal" aria-label="Close Modal">
+                    <span class="material-icons-outlined">close</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="embed-container" id="embed-container">
+                    <!-- Instagram embed will be placed here -->
+                </div>
+                <div class="reel-info">
+                    <a href="#" id="visit-tool" class="btn btn-primary" target="_blank">
+                        <span class="material-icons-outlined">open_in_new</span>
+                        Visit Tool
+                    </a>
+                    <a href="#" id="view-on-instagram" class="btn btn-secondary" target="_blank">
+                        <span class="material-icons-outlined">camera_alt</span>
+                        View on Instagram
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Overlay -->
+    <div class="overlay" id="overlay"></div>
+    
+    <!-- Instagram Embed Script -->
+    <script async src="//www.instagram.com/embed.js"></script>
+    
+    <!-- Custom Script -->
+    <script src="js/reels.js"></script>
+</body>
+</html>

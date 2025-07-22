@@ -27,7 +27,7 @@ CREATE TABLE ai_tools (
     tool_tags TEXT[], -- Array of tags
     tool_image VARCHAR(500),
     pricing_type VARCHAR(20) NOT NULL CHECK (pricing_type IN ('Free', 'Freemium', 'Pro')),
-    rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
+    rating INTEGER DEFAULT 1 CHECK (rating >= 1 AND rating <= 5),
     contributor_name VARCHAR(100),
     status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
     verified BOOLEAN DEFAULT FALSE,
@@ -57,6 +57,26 @@ CREATE TRIGGER update_ai_tools_updated_at
     FOR EACH ROW 
     EXECUTE FUNCTION update_updated_at_column();
 
+-- Create the reels table
+CREATE TABLE reels (
+    id SERIAL PRIMARY KEY,
+    tool_id INTEGER REFERENCES ai_tools(id) ON DELETE CASCADE,
+    tool_name VARCHAR(100) NOT NULL,
+    url VARCHAR(500) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Create indexes for reels table
+CREATE INDEX idx_reels_tool_id ON reels(tool_id);
+CREATE INDEX idx_reels_created_at ON reels(created_at);
+
+-- Create trigger for reels updated_at
+CREATE TRIGGER update_reels_updated_at 
+    BEFORE UPDATE ON reels 
+    FOR EACH ROW 
+    EXECUTE FUNCTION update_updated_at_column();
+
 -- Insert some sample data
 INSERT INTO ai_tools (tool_name, tool_url, tool_description, tool_category, tool_tags, tool_image, pricing_type, rating, status, verified) VALUES
 ('ChatGPT', 'https://chat.openai.com', 'Advanced AI assistant that can answer questions, write content, solve problems, and engage in natural conversations.', 'Writing', ARRAY['Writing', 'Productivity', 'Conversation'], 'https://images.unsplash.com/photo-1655720048598-02413ccd8094?ixlib=rb-4.0.3&ixid=M3wxMJA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=700&q=80', 'Freemium', 5, 'approved', true),
@@ -64,6 +84,9 @@ INSERT INTO ai_tools (tool_name, tool_url, tool_description, tool_category, tool
 ('DALL-E', 'https://openai.com/dall-e', 'AI system that creates realistic images and art from natural language descriptions. Generate unique visuals from text prompts.', 'Design', ARRAY['Design', 'Creative'], 'https://images.unsplash.com/photo-1678391800460-5e1dbafada38?ixlib=rb-4.0.3&ixid=M3wxMJA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=700&q=80', 'Freemium', 4, 'approved', true),
 ('Notion AI', 'https://notion.so/product/ai', 'AI writing assistant integrated into Notion, helping you write faster, summarize content, and generate new ideas.', 'Productivity', ARRAY['Writing', 'Productivity', 'Summarization'], 'https://images.unsplash.com/photo-1625014618611-fb1224f4abce?ixlib=rb-4.0.3&ixid=M3wxMJA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=700&q=80', 'Freemium', 4, 'approved', true),
 ('Grammarly', 'https://grammarly.com', 'AI-powered writing assistant that helps you write clear, mistake-free text. Checks grammar, spelling, tone, and clarity.', 'Writing', ARRAY['Writing', 'Grammar', 'Education'], 'https://images.unsplash.com/photo-1684163020534-5954db5d9824?ixlib=rb-4.0.3&ixid=M3wxMJA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=700&q=80', 'Freemium', 5, 'approved', true);
+
+-- If you already have the table created and need to fix existing data with rating = 0:
+-- UPDATE ai_tools SET rating = 1 WHERE rating = 0;
 ```
 
 ### 3. Row Level Security (RLS) Setup
@@ -210,6 +233,20 @@ const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY || 'your-fallback-k
 5. **Sanitize user inputs** to prevent XSS attacks
 
 ## Troubleshooting
+
+### Quick Fix for Existing Databases
+
+If you already created the database and are getting constraint errors, run this SQL to fix existing issues:
+
+```sql
+-- Fix existing data with rating = 0
+UPDATE ai_tools SET rating = 1 WHERE rating = 0;
+
+-- Ensure all pricing types match the constraint
+UPDATE ai_tools SET pricing_type = 'Free' WHERE pricing_type = 'free';
+UPDATE ai_tools SET pricing_type = 'Freemium' WHERE pricing_type = 'freemium';
+UPDATE ai_tools SET pricing_type = 'Pro' WHERE pricing_type IN ('paid', 'pro');
+```
 
 ### Common Issues:
 

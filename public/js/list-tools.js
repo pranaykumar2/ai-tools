@@ -1,8 +1,8 @@
 /**
  * AITools - List Tools JavaScript
  * Handles fetching, displaying, and interacting with AI tools collection
- * @version 1.0.0
- * @date 2025-07-21
+ * @version 1.1.0
+ * @date 2025-07-22
  */
 
 // Store app state
@@ -23,7 +23,7 @@ const appState = {
 };
 
 // API endpoint for tools data
-const API_ENDPOINT = 'https://api.aitools.com/tools';  // Replace with your actual API endpoint
+const API_ENDPOINT = '/api/tools';
 
 // DOM Elements - cached for performance
 let elements = {};
@@ -39,9 +39,41 @@ document.addEventListener('DOMContentLoaded', () => {
     // Set up event listeners
     setupEventListeners();
     
-    // Fetch tools from database
-    fetchTools();
+    // Test API connection first, then fetch tools
+    testAPIConnection().then(isConnected => {
+        if (isConnected) {
+            console.log('API connection successful, fetching tools...');
+            fetchTools();
+        } else {
+            console.log('API connection failed, using mock data...');
+            fallbackToMockData();
+        }
+    });
 });
+
+/**
+ * Test API connection before attempting to fetch tools
+ * @returns {Promise<boolean>} True if API is available
+ */
+async function testAPIConnection() {
+    try {
+        const response = await fetch(API_ENDPOINT, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+            },
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            return data.success !== undefined; // Check if response has expected structure
+        }
+        return false;
+    } catch (error) {
+        console.log('API connection test failed:', error.message);
+        return false;
+    }
+}
 
 /**
  * Cache DOM elements for better performance
@@ -131,22 +163,25 @@ function fetchTools() {
     elements.loadingState.style.display = 'block';
     elements.emptyState.style.display = 'none';
     
-    // In a real app, this would be an API call
-    // For this demo, we'll simulate an API call with setTimeout
-    setTimeout(() => {
-        // Fetch mock data
-        fetch('mock-tools-data.json')
-            .then(response => {
-                // If no mock data file exists, use hardcoded data
-                if (!response.ok) {
-                    return Promise.resolve(getMockToolsData());
-                }
-                return response.json();
-            })
-            .then(data => {
+    // Fetch from the API
+    fetch(API_ENDPOINT)
+        .then(response => {
+            console.log('API Response status:', response.status);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('API Response data:', data);
+            if (data.success && data.tools) {
+                // Filter only approved tools for public display
+                const approvedTools = data.tools.filter(tool => tool.approved === true);
+                console.log('Approved tools:', approvedTools.length, 'out of', data.tools.length);
+                
                 // Store tools in app state
-                appState.tools = data;
-                appState.filteredTools = [...data];
+                appState.tools = approvedTools;
+                appState.filteredTools = [...approvedTools];
                 
                 // Generate filter options based on available tools
                 generateFilterOptions();
@@ -164,13 +199,103 @@ function fetchTools() {
                 if (window.innerWidth >= 992 && !appState.sidebarVisible) {
                     toggleSidebar();
                 }
-            })
-            .catch(error => {
-                console.error('Error fetching tools:', error);
-                elements.loadingState.style.display = 'none';
-                elements.emptyState.style.display = 'block';
-            });
-    }, 1000); // Simulate network delay
+            } else {
+                console.warn('API response indicates failure or no tools:', data);
+                throw new Error(data.message || 'No tools data received');
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching tools:', error);
+            elements.loadingState.style.display = 'none';
+            
+            // Show error message briefly before falling back
+            console.log('Falling back to mock data due to error:', error.message);
+            
+            // Fallback to mock data if API fails
+            fallbackToMockData();
+        });
+}
+
+/**
+ * Fallback to mock data if API fails
+ */
+function fallbackToMockData() {
+    console.log('Using mock data as fallback');
+    
+    // Hide empty state since we're providing mock data
+    elements.emptyState.style.display = 'none';
+    
+    // Use mock data
+    appState.tools = getMockToolsData();
+    appState.filteredTools = [...appState.tools];
+    
+    // Generate filter options
+    generateFilterOptions();
+    
+    // Apply filters
+    applyFilters();
+    
+    // Render tools
+    renderTools();
+    
+    // Hide loading state
+    elements.loadingState.style.display = 'none';
+    
+    // If sidebar should be visible by default on larger screens
+    if (window.innerWidth >= 992 && !appState.sidebarVisible) {
+        toggleSidebar();
+    }
+    
+    // Show a notification that we're using demo data
+    showDemoDataNotification();
+}
+
+/**
+ * Show notification that demo data is being used
+ */
+function showDemoDataNotification() {
+    // Create notification element if it doesn't exist
+    let notification = document.getElementById('demo-notification');
+    if (!notification) {
+        notification = document.createElement('div');
+        notification.id = 'demo-notification';
+        notification.innerHTML = `
+            <div style="
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: #ff9800;
+                color: white;
+                padding: 12px 16px;
+                border-radius: 8px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                z-index: 1000;
+                font-size: 14px;
+                max-width: 300px;
+            ">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span class="material-icons-outlined" style="font-size: 18px;">info</span>
+                    <span>Using demo data - server not available</span>
+                    <button onclick="this.parentElement.parentElement.remove()" style="
+                        background: none;
+                        border: none;
+                        color: white;
+                        cursor: pointer;
+                        margin-left: auto;
+                        font-size: 18px;
+                    ">&times;</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(notification);
+        
+        // Auto-remove after 5 seconds
+        setTimeout(() => {
+            if (notification && notification.parentNode) {
+                notification.remove();
+            }
+        }, 5000);
+    }
 }
 
 /**
@@ -249,7 +374,8 @@ function getMockToolsData() {
             features: toolFeatures,
             tags: tags,
             rating: parseFloat(rating),
-            date_added: new Date(Date.now() - Math.floor(Math.random() * 30) * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+            date_added: new Date(Date.now() - Math.floor(Math.random() * 30) * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+            approved: true
         };
     });
 }
@@ -1004,3 +1130,4 @@ function loadUserPreferences() {
         }
     }
 }
+
