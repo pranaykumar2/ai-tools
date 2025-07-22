@@ -1,1227 +1,997 @@
 /**
- * AITools - Admin Submissions JavaScript
- * Handles submissions listing and review functionality
+ * AITools - Admin Submissions Management JavaScript
+ * Handles submission approval, rejection, and filtering with live Supabase database
  * @version 1.0.0
  * @date 2025-07-22
  * @author Pranay Kumar
  */
 
 document.addEventListener('DOMContentLoaded', () => {
+    // State management
+    let currentPage = 1;
+    let currentFilters = {
+        status: 'pending',
+        category: 'all',
+        dateFilter: 'all',
+        search: ''
+    };
+    let selectedSubmissions = new Set();
+    let allSubmissions = [];
+    let currentSubmissionId = null;
+    
     // Cache DOM elements
     const elements = {
-        // Sidebar
-        sidebar: document.querySelector('.admin-sidebar'),
+        // Filters
+        statusFilter: document.getElementById('status-filter'),
+        categoryFilter: document.getElementById('category-filter'),
+        dateFilter: document.getElementById('date-filter'),
+        searchInput: document.getElementById('admin-search-input'),
+        
+        // Action buttons
+        approveSelectedBtn: document.getElementById('approve-selected-btn'),
+        rejectSelectedBtn: document.getElementById('reject-selected-btn'),
+        selectAllCheckbox: document.getElementById('select-all-checkbox'),
+        
+        // Table and pagination
+        submissionsTable: document.getElementById('submissions-table'),
+        pagination: document.getElementById('pagination'),
+        
+        // Modals
+        submissionModal: document.getElementById('submission-modal'),
+        rejectModal: document.getElementById('reject-modal'),
+        overlay: document.getElementById('overlay'),
+        
+        // Modal elements
+        modalTitle: document.getElementById('modal-title'),
+        submissionDetails: document.getElementById('submission-details'),
+        closeModal: document.getElementById('close-modal'),
+        closeDetailsBtn: document.getElementById('close-details-btn'),
+        approveBtn: document.getElementById('approve-btn'),
+        rejectBtn: document.getElementById('reject-btn'),
+        
+        // Reject modal elements
+        closeRejectModal: document.getElementById('close-reject-modal'),
+        rejectReason: document.getElementById('reject-reason'),
+        cancelRejectBtn: document.getElementById('cancel-reject-btn'),
+        confirmRejectBtn: document.getElementById('confirm-reject-btn'),
+        
+        // Sidebar and menu
         toggleSidebar: document.getElementById('toggle-sidebar'),
+        sidebar: document.querySelector('.admin-sidebar'),
         closeSidebar: document.getElementById('close-sidebar'),
         
         // Notifications
         notificationBtn: document.getElementById('notification-btn'),
         notificationDropdown: document.getElementById('notification-dropdown'),
-        
-        // Profile
-        profileBtn: document.getElementById('profile-btn'),
-        profileDropdown: document.getElementById('profile-dropdown'),
-        
-        // Filters
-        statusFilter: document.getElementById('status-filter'),
-        categoryFilter: document.getElementById('category-filter'),
-        dateFilter: document.getElementById('date-filter'),
-        
-        // Bulk actions
-        selectAllCheckbox: document.getElementById('select-all-checkbox'),
-        approveSelectedBtn: document.getElementById('approve-selected-btn'),
-        rejectSelectedBtn: document.getElementById('reject-selected-btn'),
-        
-        // Table
-        submissionsTable: document.getElementById('submissions-table'),
-        
-        // Pagination
-        pagination: document.getElementById('pagination'),
-        
-        // Modals
-        submissionModal: document.getElementById('submission-modal'),
-        submissionDetails: document.getElementById('submission-details'),
-        closeModalBtn: document.getElementById('close-modal'),
-        closeDetailsBtn: document.getElementById('close-details-btn'),
-        approveBtn: document.getElementById('approve-btn'),
-        rejectBtn: document.getElementById('reject-btn'),
-        
-        rejectModal: document.getElementById('reject-modal'),
-        rejectReason: document.getElementById('reject-reason'),
-        closeRejectModalBtn: document.getElementById('close-reject-modal'),
-        cancelRejectBtn: document.getElementById('cancel-reject-btn'),
-        confirmRejectBtn: document.getElementById('confirm-reject-btn'),
-        
-        // Overlay
-        overlay: document.getElementById('overlay')
+        notificationBadge: document.getElementById('notification-badge'),
+        markAllRead: document.getElementById('mark-all-read'),
+        submissionsBadge: document.getElementById('submissions-badge')
     };
     
-    // App state
-    const state = {
-        submissions: [],
-        filteredSubmissions: [],
-        currentPage: 1,
-        itemsPerPage: 10,
-        filters: {
-            status: 'pending',
-            category: 'all',
-            date: 'all'
-        },
-        selectedIds: [],
-        currentSubmissionId: null
-    };
-    
-    // Set up event listeners
+    // Initialize
     setupEventListeners();
+    loadCategories();
+    fetchSubmissions();
+    fetchNotifications(); // Add notification fetching
     
-    // Load initial data
-    loadInitialData();
+    // Set up periodic notification refresh (every 30 seconds)
+    setInterval(fetchNotifications, 30000);
     
     /**
      * Set up all event listeners
      */
     function setupEventListeners() {
-        // Common UI interactions (sidebar, dropdowns, etc.)
-        setupCommonInteractions();
-        
         // Filters
-        elements.statusFilter.addEventListener('change', handleFilterChange);
-        elements.categoryFilter.addEventListener('change', handleFilterChange);
-        elements.dateFilter.addEventListener('change', handleFilterChange);
+        if (elements.statusFilter) {
+            elements.statusFilter.addEventListener('change', handleFilterChange);
+        }
+        if (elements.categoryFilter) {
+            elements.categoryFilter.addEventListener('change', handleFilterChange);
+        }
+        if (elements.dateFilter) {
+            elements.dateFilter.addEventListener('change', handleFilterChange);
+        }
+        if (elements.searchInput) {
+            elements.searchInput.addEventListener('input', debounce(handleSearchChange, 300));
+        }
         
-        // Select all checkbox
-        elements.selectAllCheckbox.addEventListener('change', toggleSelectAll);
+        // Bulk actions
+        if (elements.selectAllCheckbox) {
+            elements.selectAllCheckbox.addEventListener('change', handleSelectAll);
+        }
+        if (elements.approveSelectedBtn) {
+            elements.approveSelectedBtn.addEventListener('click', handleApproveSelected);
+        }
+        if (elements.rejectSelectedBtn) {
+            elements.rejectSelectedBtn.addEventListener('click', handleRejectSelected);
+        }
         
-        // Bulk action buttons
-        elements.approveSelectedBtn.addEventListener('click', approveSelected);
-        elements.rejectSelectedBtn.addEventListener('click', () => showRejectModal(state.selectedIds));
+        // Modal events
+        if (elements.closeModal) {
+            elements.closeModal.addEventListener('click', closeSubmissionModal);
+        }
+        if (elements.closeDetailsBtn) {
+            elements.closeDetailsBtn.addEventListener('click', closeSubmissionModal);
+        }
+        if (elements.approveBtn) {
+            elements.approveBtn.addEventListener('click', handleApproveFromModal);
+        }
+        if (elements.rejectBtn) {
+            elements.rejectBtn.addEventListener('click', handleRejectFromModal);
+        }
         
-        // Modal close buttons
-        elements.closeModalBtn.addEventListener('click', closeSubmissionModal);
-        elements.closeDetailsBtn.addEventListener('click', closeSubmissionModal);
-        elements.closeRejectModalBtn.addEventListener('click', closeRejectModal);
-        elements.cancelRejectBtn.addEventListener('click', closeRejectModal);
+        // Reject modal events
+        if (elements.closeRejectModal) {
+            elements.closeRejectModal.addEventListener('click', closeRejectModal);
+        }
+        if (elements.cancelRejectBtn) {
+            elements.cancelRejectBtn.addEventListener('click', closeRejectModal);
+        }
+        if (elements.confirmRejectBtn) {
+            elements.confirmRejectBtn.addEventListener('click', handleConfirmReject);
+        }
         
-        // Modal action buttons
-        elements.approveBtn.addEventListener('click', () => approveSubmission(state.currentSubmissionId));
-        elements.rejectBtn.addEventListener('click', () => showRejectModal([state.currentSubmissionId]));
-        elements.confirmRejectBtn.addEventListener('click', confirmReject);
+        // Close modals on overlay click
+        if (elements.overlay) {
+            elements.overlay.addEventListener('click', () => {
+                closeSubmissionModal();
+                closeRejectModal();
+            });
+        }
         
-        // Overlay click
-        elements.overlay.addEventListener('click', () => {
-            closeSubmissionModal();
-            closeRejectModal();
+        // Sidebar toggle
+        if (elements.toggleSidebar && elements.sidebar) {
+            elements.toggleSidebar.addEventListener('click', () => {
+                elements.sidebar.classList.toggle('active');
+                if (elements.overlay) elements.overlay.classList.toggle('active');
+            });
+        }
+        
+        if (elements.closeSidebar && elements.sidebar) {
+            elements.closeSidebar.addEventListener('click', () => {
+                elements.sidebar.classList.remove('active');
+                if (elements.overlay) elements.overlay.classList.remove('active');
+            });
+        }
+        
+        // Notifications dropdown
+        if (elements.notificationBtn) {
+            elements.notificationBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (elements.notificationDropdown) {
+                    elements.notificationDropdown.classList.toggle('active');
+                }
+            });
+        }
+        
+        // Mark all notifications as read
+        if (elements.markAllRead) {
+            elements.markAllRead.addEventListener('click', markAllNotificationsAsRead);
+        }
+        
+        // Close dropdowns when clicking outside
+        document.addEventListener('click', (e) => {
+            if (elements.notificationBtn && elements.notificationDropdown && 
+                !elements.notificationBtn.contains(e.target) && 
+                !elements.notificationDropdown.contains(e.target)) {
+                elements.notificationDropdown.classList.remove('active');
+            }
         });
-        
-        // Check for direct view parameter
-        const urlParams = new URLSearchParams(window.location.search);
-        const viewId = urlParams.get('id');
-        if (viewId) {
-            setTimeout(() => {
-                viewSubmissionDetails(viewId);
-            }, 500);
+    }
+    
+    /**
+     * Load categories for filter dropdown
+     */
+    async function loadCategories() {
+        try {
+            const response = await fetch('/api/admin/categories');
+            const data = await response.json();
+            
+            if (data.success && data.categories && elements.categoryFilter) {
+                // Clear existing options except "All Categories"
+                while (elements.categoryFilter.children.length > 1) {
+                    elements.categoryFilter.removeChild(elements.categoryFilter.lastChild);
+                }
+                
+                // Add categories
+                data.categories.forEach(category => {
+                    const option = document.createElement('option');
+                    option.value = category;
+                    option.textContent = category;
+                    elements.categoryFilter.appendChild(option);
+                });
+            }
+        } catch (error) {
+            console.error('Error loading categories:', error);
         }
     }
     
     /**
-     * Set up common UI interactions (sidebar, dropdowns, etc.)
+     * Fetch submissions from API
      */
-    function setupCommonInteractions() {
-        // Sidebar toggle
-        elements.toggleSidebar.addEventListener('click', () => {
-            elements.sidebar.classList.toggle('active');
-            elements.overlay.classList.toggle('active');
-            document.body.classList.toggle('scroll-lock');
-        });
-        
-        elements.closeSidebar.addEventListener('click', closeSidebar);
-        elements.overlay.addEventListener('click', closeSidebar);
-        
-        // Notifications dropdown
-        elements.notificationBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            elements.notificationDropdown.classList.toggle('active');
-            elements.profileDropdown.classList.remove('active');
-        });
-        
-        // Profile dropdown
-        elements.profileBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            elements.profileDropdown.classList.toggle('active');
-            elements.notificationDropdown.classList.remove('active');
-        });
-        
-        // Close dropdowns when clicking outside
-        document.addEventListener('click', (e) => {
-            if (!elements.notificationBtn.contains(e.target) && 
-                !elements.notificationDropdown.contains(e.target)) {
-                elements.notificationDropdown.classList.remove('active');
+    async function fetchSubmissions() {
+        try {
+            showLoading();
+            
+            const params = new URLSearchParams({
+                page: currentPage,
+                status: currentFilters.status,
+                category: currentFilters.category,
+                dateFilter: currentFilters.dateFilter,
+                limit: 10
+            });
+            
+            if (currentFilters.search) {
+                params.append('search', currentFilters.search);
             }
             
-            if (!elements.profileBtn.contains(e.target) && 
-                !elements.profileDropdown.contains(e.target)) {
-                elements.profileDropdown.classList.remove('active');
+            const response = await fetch(`/api/admin/submissions?${params}`);
+            const data = await response.json();
+            
+            if (data.success) {
+                allSubmissions = data.submissions || [];
+                renderSubmissionsTable();
+                renderPagination(data.totalPages || 1, data.currentPage || 1);
+            } else {
+                throw new Error('Failed to fetch submissions');
             }
-        });
-    }
-    
-    /**
-     * Close sidebar
-     */
-    function closeSidebar() {
-        elements.sidebar.classList.remove('active');
-        elements.overlay.classList.remove('active');
-        document.body.classList.remove('scroll-lock');
-    }
-    
-    /**
-     * Load initial data
-     */
-    function loadInitialData() {
-        // Load categories for filter
-        loadCategories();
-        
-        // Load submissions
-        fetchSubmissions();
-    }
-    
-    /**
-     * Load categories for filter
-     */
-    function loadCategories() {
-        // In a real app, this would be an API call
-        fetch('/api/categories')
-            .then(response => {
-                if (!response.ok) {
-                    return Promise.resolve([
-                        'Productivity', 'Design', 'Writing', 'Education',
-                        'Research', 'Development', 'Marketing'
-                    ]);
-                }
-                return response.json();
-            })
-            .then(categories => {
-                // Create category options
-                const categoryOptions = categories.map(category => 
-                    `<option value="${category}">${category}</option>`
-                ).join('');
-                
-                // Update category filter
-                elements.categoryFilter.innerHTML = `
-                    <option value="all">All Categories</option>
-                    ${categoryOptions}
-                `;
-            })
-            .catch(error => {
-                console.error('Error loading categories:', error);
-                // Fallback categories
-                const fallbackCategories = [
-                    'Productivity', 'Design', 'Writing', 'Education',
-                    'Research', 'Development', 'Marketing'
-                ];
-                
-                // Create category options
-                const categoryOptions = fallbackCategories.map(category => 
-                    `<option value="${category}">${category}</option>`
-                ).join('');
-                
-                // Update category filter
-                elements.categoryFilter.innerHTML = `
-                    <option value="all">All Categories</option>
-                    ${categoryOptions}
-                `;
-            });
-    }
-    
-    /**
-     * Fetch submissions
-     */
-    function fetchSubmissions() {
-        // Show loading state
-        elements.submissionsTable.innerHTML = `
-            <tr class="loading-row">
-                <td colspan="7">
-                    <div class="loading-indicator">
-                        <div class="loader"></div>
-                        <p>Loading submissions...</p>
-                    </div>
-                </td>
-            </tr>
-        `;
-        
-        // In a real app, this would be an API call with filters
-        const queryParams = new URLSearchParams({
-            status: state.filters.status,
-            category: state.filters.category,
-            date: state.filters.date
-        }).toString();
-        
-        fetch(`/api/admin/submissions?${queryParams}`)
-            .then(response => {
-                if (!response.ok) {
-                    return Promise.resolve(getMockSubmissions(state.filters));
-                }
-                return response.json();
-            })
-            .then(data => {
-                // Store submissions in state
-                state.submissions = data.submissions;
-                state.filteredSubmissions = [...data.submissions];
-                
-                // Reset selection
-                state.selectedIds = [];
-                updateBulkActionButtons();
-                
-                // Render submissions
-                renderSubmissions();
-            })
-            .catch(error => {
-                console.error('Error fetching submissions:', error);
-                // Use fallback data
-                const mockData = getMockSubmissions(state.filters);
-                state.submissions = mockData.submissions;
-                state.filteredSubmissions = [...mockData.submissions];
-                
-                // Reset selection
-                state.selectedIds = [];
-                updateBulkActionButtons();
-                
-                // Render submissions
-                renderSubmissions();
-            });
+        } catch (error) {
+            console.error('Error fetching submissions:', error);
+            showError('Failed to load submissions');
+            
+            // Fallback to mock data
+            allSubmissions = getMockSubmissions();
+            renderSubmissionsTable();
+            renderPagination(1, 1);
+        }
     }
     
     /**
      * Render submissions table
      */
-    function renderSubmissions() {
-        // Calculate pagination
-        const startIndex = (state.currentPage - 1) * state.itemsPerPage;
-        const endIndex = startIndex + state.itemsPerPage;
-        const paginatedSubmissions = state.filteredSubmissions.slice(startIndex, endIndex);
+    function renderSubmissionsTable() {
+        if (!elements.submissionsTable) return;
         
-        // Create table rows
-        if (paginatedSubmissions.length === 0) {
+        if (allSubmissions.length === 0) {
             elements.submissionsTable.innerHTML = `
-                <tr>
-                    <td colspan="7" class="empty-message">
-                        No submissions found matching the current filters.
-                    </td>
-                </tr>
-            `;
-            elements.pagination.innerHTML = '';
-            elements.selectAllCheckbox.checked = false;
-            elements.selectAllCheckbox.disabled = true;
-            return;
-        }
-        
-        // Enable select all checkbox
-        elements.selectAllCheckbox.disabled = false;
-        
-        // Generate table rows
-        const submissionsHTML = paginatedSubmissions.map(submission => {
-            let statusClass = '';
-            switch (submission.status) {
-                case 'pending':
-                    statusClass = 'pending';
-                    break;
-                case 'approved':
-                    statusClass = 'approved';
-                    break;
-                case 'rejected':
-                    statusClass = 'rejected';
-                    break;
-            }
-            
-            const isSelected = state.selectedIds.includes(submission.id);
-            
-            return `
-                <tr>
-                    <td>
-                        <input type="checkbox" class="row-checkbox" data-id="${submission.id}" ${isSelected ? 'checked' : ''}>
-                    </td>
-                    <td>${submission.name}</td>
-                    <td>${submission.category}</td>
-                    <td>${submission.submitter}</td>
-                    <td>${formatDate(submission.date_submitted)}</td>
-                    <td>
-                        <span class="status-badge ${statusClass}">
-                            ${capitalizeFirstLetter(submission.status)}
-                        </span>
-                    </td>
-                    <td>
-                        <div class="action-buttons">
-                            <button class="action-btn view-btn" data-id="${submission.id}" title="View Details">
-                                <span class="material-icons-outlined">visibility</span>
-                            </button>
-                            ${submission.status === 'pending' ? `
-                                <button class="action-btn approve-btn" data-id="${submission.id}" title="Approve">
-                                    <span class="material-icons-outlined">check_circle</span>
-                                </button>
-                                <button class="action-btn reject-btn" data-id="${submission.id}" title="Reject">
-                                    <span class="material-icons-outlined">cancel</span>
-                                </button>
-                            ` : ''}
+                <tr class="no-data-row">
+                    <td colspan="7">
+                        <div class="no-data">
+                            <span class="material-icons-outlined">inbox</span>
+                            <p>No submissions found</p>
                         </div>
                     </td>
                 </tr>
             `;
-        }).join('');
-        
-        elements.submissionsTable.innerHTML = submissionsHTML;
-        
-        // Add event listeners to row checkboxes
-        document.querySelectorAll('.row-checkbox').forEach(checkbox => {
-            checkbox.addEventListener('change', handleRowCheckboxChange);
-        });
-        
-        // Add event listeners to action buttons
-        document.querySelectorAll('.view-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const id = btn.getAttribute('data-id');
-                viewSubmissionDetails(id);
-            });
-        });
-        
-        document.querySelectorAll('.approve-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const id = btn.getAttribute('data-id');
-                approveSubmission(id);
-            });
-        });
-        
-        document.querySelectorAll('.reject-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const id = btn.getAttribute('data-id');
-                showRejectModal([id]);
-            });
-        });
-        
-        // Render pagination
-        renderPagination();
-        
-        // Update select all checkbox state
-        updateSelectAllCheckbox();
-    }
-    
-    /**
-     * Render pagination controls
-     */
-    function renderPagination() {
-        const totalPages = Math.ceil(state.filteredSubmissions.length / state.itemsPerPage);
-        
-        // Don't show pagination if only one page
-        if (totalPages <= 1) {
-            elements.pagination.innerHTML = '';
             return;
         }
         
-        let paginationHTML = '';
+        const submissionsHTML = allSubmissions.map(submission => createSubmissionRow(submission)).join('');
+        elements.submissionsTable.innerHTML = submissionsHTML;
         
-        // Previous button
-        if (state.currentPage > 1) {
-            paginationHTML += `
-                <button class="page-btn prev-btn" data-page="${state.currentPage - 1}">
-                    <span class="material-icons-outlined">keyboard_arrow_left</span>
-                </button>
-            `;
-        }
-        
-        // Page buttons
-        let startPage = Math.max(1, state.currentPage - 2);
-        let endPage = Math.min(totalPages, startPage + 4);
-        
-        // Adjust start page if we're at the end
-        if (endPage - startPage < 4) {
-            startPage = Math.max(1, endPage - 4);
-        }
-        
-        for (let i = startPage; i <= endPage; i++) {
-            paginationHTML += `
-                <button class="page-btn ${i === state.currentPage ? 'active' : ''}" data-page="${i}">
-                    ${i}
-                </button>
-            `;
-        }
-        
-        // Next button
-        if (state.currentPage < totalPages) {
-            paginationHTML += `
-                <button class="page-btn next-btn" data-page="${state.currentPage + 1}">
-                    <span class="material-icons-outlined">keyboard_arrow_right</span>
-                </button>
-            `;
-        }
-        
-        elements.pagination.innerHTML = paginationHTML;
-        
-        // Add event listeners to pagination buttons
-        document.querySelectorAll('.page-btn').forEach(btn => {
-            btn.addEventListener('click', handlePageChange);
+        // Add event listeners to checkboxes and action buttons
+        document.querySelectorAll('.submission-checkbox').forEach(checkbox => {
+            checkbox.addEventListener('change', handleSubmissionSelect);
         });
+        
+        document.querySelectorAll('.view-submission-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const submissionId = parseInt(e.target.closest('[data-id]').getAttribute('data-id'));
+                showSubmissionDetails(submissionId);
+            });
+        });
+        
+        document.querySelectorAll('.approve-submission-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const submissionId = parseInt(e.target.closest('[data-id]').getAttribute('data-id'));
+                approveSubmission([submissionId]);
+            });
+        });
+        
+        document.querySelectorAll('.reject-submission-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const submissionId = parseInt(e.target.closest('[data-id]').getAttribute('data-id'));
+                currentSubmissionId = submissionId;
+                if (elements.rejectModal && elements.overlay) {
+                    elements.rejectModal.classList.add('active');
+                    elements.overlay.classList.add('active');
+                }
+            });
+        });
+        
+        updateBulkActionButtons();
     }
     
     /**
-     * Handle page change
-     * @param {Event} e - Click event
+     * Create HTML for submission row
      */
-    function handlePageChange(e) {
-        const page = parseInt(e.currentTarget.dataset.page);
-        state.currentPage = page;
-        renderSubmissions();
+    function createSubmissionRow(submission) {
+        const statusClass = getStatusClass(submission.status);
+        const date = formatDate(submission.created_at);
         
-        // Scroll to top of table
-        elements.submissionsTable.parentNode.scrollTo({
-            top: 0,
-            behavior: 'smooth'
-        });
+        return `
+            <tr data-id="${submission.id}">
+                <td>
+                    <input type="checkbox" class="submission-checkbox" value="${submission.id}">
+                </td>
+                <td>
+                    <div class="tool-info">
+                        <h3 class="tool-name">${submission.name}</h3>
+                        <p class="tool-description">${truncateText(submission.description || '', 60)}</p>
+                    </div>
+                </td>
+                <td>
+                    <span class="category-badge">${submission.category}</span>
+                </td>
+                <td>
+                    <div class="contributor-info">
+                        <span class="contributor-name">${submission.contributor_name || 'Anonymous'}</span>
+                        <span class="contributor-email">${submission.contributor_email || ''}</span>
+                    </div>
+                </td>
+                <td>${date}</td>
+                <td>
+                    <span class="status-badge ${statusClass}">
+                        ${capitalizeFirstLetter(submission.status)}
+                    </span>
+                </td>
+                <td>
+                    <div class="action-buttons">
+                        <button class="action-btn view-btn view-submission-btn" data-id="${submission.id}" title="View Details">
+                            <span class="material-icons-outlined">visibility</span>
+                        </button>
+                        ${submission.status === 'pending' ? `
+                            <button class="action-btn approve-btn approve-submission-btn" data-id="${submission.id}" title="Approve">
+                                <span class="material-icons-outlined">check_circle</span>
+                            </button>
+                            <button class="action-btn reject-btn reject-submission-btn" data-id="${submission.id}" title="Reject">
+                                <span class="material-icons-outlined">cancel</span>
+                            </button>
+                        ` : ''}
+                    </div>
+                </td>
+            </tr>
+        `;
     }
     
     /**
-     * Handle filter change
+     * Handle filter changes
      */
     function handleFilterChange() {
-        // Update filters in state
-        state.filters.status = elements.statusFilter.value;
-        state.filters.category = elements.categoryFilter.value;
-        state.filters.date = elements.dateFilter.value;
-        
-        // Reset current page
-        state.currentPage = 1;
-        
-        // Fetch submissions with new filters
+        currentFilters.status = elements.statusFilter?.value || 'pending';
+        currentFilters.category = elements.categoryFilter?.value || 'all';
+        currentFilters.dateFilter = elements.dateFilter?.value || 'all';
+        currentPage = 1;
         fetchSubmissions();
     }
     
     /**
-     * Toggle select all checkboxes
+     * Handle search input changes
      */
-    function toggleSelectAll() {
-        const isChecked = elements.selectAllCheckbox.checked;
+    function handleSearchChange() {
+        currentFilters.search = elements.searchInput?.value.trim() || '';
+        currentPage = 1;
+        fetchSubmissions();
+    }
+    
+    /**
+     * Handle select all checkbox
+     */
+    function handleSelectAll() {
+        if (!elements.selectAllCheckbox) return;
         
-        // Update all row checkboxes
-        document.querySelectorAll('.row-checkbox').forEach(checkbox => {
+        const isChecked = elements.selectAllCheckbox.checked;
+        selectedSubmissions.clear();
+        
+        document.querySelectorAll('.submission-checkbox').forEach(checkbox => {
             checkbox.checked = isChecked;
-            
-            // Update selected IDs
-            const id = checkbox.getAttribute('data-id');
             if (isChecked) {
-                if (!state.selectedIds.includes(id)) {
-                    state.selectedIds.push(id);
-                }
-            } else {
-                const index = state.selectedIds.indexOf(id);
-                if (index !== -1) {
-                    state.selectedIds.splice(index, 1);
-                }
+                selectedSubmissions.add(parseInt(checkbox.value));
             }
         });
         
-        // Update bulk action buttons
         updateBulkActionButtons();
     }
     
     /**
-     * Handle row checkbox change
-     * @param {Event} e - Change event
+     * Handle individual submission selection
      */
-    function handleRowCheckboxChange(e) {
-        const checkbox = e.currentTarget;
-        const id = checkbox.getAttribute('data-id');
+    function handleSubmissionSelect(e) {
+        const submissionId = parseInt(e.target.value);
         
-        if (checkbox.checked) {
-            // Add to selected IDs
-            if (!state.selectedIds.includes(id)) {
-                state.selectedIds.push(id);
-            }
+        if (e.target.checked) {
+            selectedSubmissions.add(submissionId);
         } else {
-            // Remove from selected IDs
-            const index = state.selectedIds.indexOf(id);
-            if (index !== -1) {
-                state.selectedIds.splice(index, 1);
-            }
+            selectedSubmissions.delete(submissionId);
         }
         
-        // Update select all checkbox state
-        updateSelectAllCheckbox();
+        // Update select all checkbox
+        const totalCheckboxes = document.querySelectorAll('.submission-checkbox').length;
+        const checkedCheckboxes = document.querySelectorAll('.submission-checkbox:checked').length;
         
-        // Update bulk action buttons
+        if (elements.selectAllCheckbox) {
+            elements.selectAllCheckbox.checked = totalCheckboxes === checkedCheckboxes;
+            elements.selectAllCheckbox.indeterminate = checkedCheckboxes > 0 && checkedCheckboxes < totalCheckboxes;
+        }
+        
         updateBulkActionButtons();
-    }
-    
-    /**
-     * Update select all checkbox state
-     */
-    function updateSelectAllCheckbox() {
-        const checkboxes = document.querySelectorAll('.row-checkbox');
-        const checkedCount = document.querySelectorAll('.row-checkbox:checked').length;
-        
-        if (checkboxes.length === 0) {
-            elements.selectAllCheckbox.checked = false;
-            elements.selectAllCheckbox.indeterminate = false;
-        } else if (checkedCount === 0) {
-            elements.selectAllCheckbox.checked = false;
-            elements.selectAllCheckbox.indeterminate = false;
-        } else if (checkedCount === checkboxes.length) {
-            elements.selectAllCheckbox.checked = true;
-            elements.selectAllCheckbox.indeterminate = false;
-        } else {
-            elements.selectAllCheckbox.checked = false;
-            elements.selectAllCheckbox.indeterminate = true;
-        }
     }
     
     /**
      * Update bulk action buttons state
      */
     function updateBulkActionButtons() {
-        // Only enable bulk actions when items are selected and they are pending
-        let enableButtons = state.selectedIds.length > 0;
+        const hasSelected = selectedSubmissions.size > 0;
+        if (elements.approveSelectedBtn) elements.approveSelectedBtn.disabled = !hasSelected;
+        if (elements.rejectSelectedBtn) elements.rejectSelectedBtn.disabled = !hasSelected;
+    }
+    
+    /**
+     * Handle approve selected submissions
+     */
+    function handleApproveSelected() {
+        if (selectedSubmissions.size === 0) return;
         
-        // Check if all selected items are pending
-        if (enableButtons) {
-            const pendingOnly = state.selectedIds.every(id => {
-                const submission = state.submissions.find(s => s.id === id);
-                return submission && submission.status === 'pending';
-            });
+        const submissionIds = Array.from(selectedSubmissions);
+        approveSubmission(submissionIds);
+    }
+    
+    /**
+     * Handle reject selected submissions
+     */
+    function handleRejectSelected() {
+        if (selectedSubmissions.size === 0) return;
+        
+        currentSubmissionId = Array.from(selectedSubmissions);
+        if (elements.rejectModal && elements.overlay) {
+            elements.rejectModal.classList.add('active');
+            elements.overlay.classList.add('active');
+        }
+    }
+    
+    /**
+     * Approve submission(s)
+     */
+    async function approveSubmission(submissionIds) {
+        try {
+            showLoading();
             
-            enableButtons = pendingOnly;
-        }
-        
-        elements.approveSelectedBtn.disabled = !enableButtons;
-        elements.rejectSelectedBtn.disabled = !enableButtons;
-    }
-    
-    /**
-     * View submission details
-     * @param {string} id - Submission ID
-     */
-    function viewSubmissionDetails(id) {
-        // Set current submission ID
-        state.currentSubmissionId = id;
-        
-        // Show loading state
-        elements.submissionDetails.innerHTML = `
-            <div class="loading-indicator">
-                <div class="loader"></div>
-                <p>Loading submission details...</p>
-            </div>
-        `;
-        
-        // Show modal
-        openSubmissionModal();
-        
-        // Fetch submission details
-        fetch(`/api/admin/submissions/${id}`)
-            .then(response => {
-                if (!response.ok) {
-                    // Get submission from state
-                    const submission = state.submissions.find(s => s.id === id);
-                    
-                    if (submission) {
-                        return Promise.resolve(getMockSubmissionDetails(submission));
-                    } else {
-                        throw new Error('Submission not found');
+            // Handle individual approvals
+            for (const id of submissionIds) {
+                const response = await fetch(`/api/admin/tools/${id}/approve`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
                     }
-                }
-                return response.json();
-            })
-            .then(data => {
-                // Update modal title
-                document.getElementById('modal-title').textContent = `Submission: ${data.name}`;
+                });
                 
-                // Render submission details
-                renderSubmissionDetails(data);
+                const data = await response.json();
                 
-                // Update action buttons based on status
-                if (data.status === 'pending') {
-                    elements.approveBtn.style.display = 'block';
-                    elements.rejectBtn.style.display = 'block';
-                } else {
-                    elements.approveBtn.style.display = 'none';
-                    elements.rejectBtn.style.display = 'none';
+                if (!data.success) {
+                    throw new Error(data.message || `Failed to approve tool ${id}`);
                 }
-            })
-            .catch(error => {
-                console.error('Error fetching submission details:', error);
-                elements.submissionDetails.innerHTML = `
-                    <div class="error-message">
-                        <span class="material-icons-outlined">error_outline</span>
-                        <p>Failed to load submission details</p>
-                    </div>
-                `;
-            });
+            }
+            
+            showToast(`Successfully approved ${submissionIds.length} submission(s)`, 'success');
+            selectedSubmissions.clear();
+            if (elements.selectAllCheckbox) elements.selectAllCheckbox.checked = false;
+            fetchSubmissions();
+            fetchNotifications(); // Refresh notifications after approval
+            
+        } catch (error) {
+            console.error('Error approving submissions:', error);
+            showToast('Failed to approve submissions', 'error');
+        } finally {
+            hideLoading();
+        }
     }
     
     /**
-     * Render submission details in the modal
-     * @param {Object} submission - Submission details
+     * Reject submission(s)
      */
-    function renderSubmissionDetails(submission) {
-        // Format features as tags
-        const featuresHTML = submission.features.map(feature => 
-            `<span class="feature-tag">${feature}</span>`
-        ).join('');
-        
-        // Format pricing as badge
-        let pricingBadge = '';
-        switch (submission.pricing) {
-            case 'free':
-                pricingBadge = '<span class="status-badge approved">Free</span>';
-                break;
-            case 'freemium':
-                pricingBadge = '<span class="status-badge pending">Freemium</span>';
-                break;
-            case 'paid':
-                pricingBadge = '<span class="status-badge rejected">Paid</span>';
-                break;
+    async function rejectSubmission(submissionIds, reason) {
+        try {
+            showLoading();
+            
+            // Handle individual rejections
+            for (const id of submissionIds) {
+                const response = await fetch(`/api/admin/tools/${id}/reject`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        reason: reason || 'No reason provided'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (!data.success) {
+                    throw new Error(data.message || `Failed to reject tool ${id}`);
+                }
+            }
+            
+            showToast(`Successfully rejected ${submissionIds.length} submission(s)`, 'success');
+            selectedSubmissions.clear();
+            if (elements.selectAllCheckbox) elements.selectAllCheckbox.checked = false;
+            fetchSubmissions();
+            fetchNotifications(); // Refresh notifications after rejection
+            
+        } catch (error) {
+            console.error('Error rejecting submissions:', error);
+            showToast('Failed to reject submissions', 'error');
+        } finally {
+            hideLoading();
         }
-        
-        // Format status badge
-        let statusBadge = '';
-        switch (submission.status) {
-            case 'pending':
-                statusBadge = '<span class="status-badge pending">Pending</span>';
-                break;
-            case 'approved':
-                statusBadge = '<span class="status-badge approved">Approved</span>';
-                break;
-            case 'rejected':
-                statusBadge = '<span class="status-badge rejected">Rejected</span>';
-                break;
-        }
-        
-        // Create HTML for submission details
-        const detailsHTML = `
-            <div class="submission-detail-grid">
-                <div class="submission-left">
-                    <img src="${submission.image}" alt="${submission.name}" class="submission-image">
-                    <div class="detail-group">
-                        <label>Name</label>
-                        <p>${submission.name}</p>
-                    </div>
-                    <div class="detail-group">
-                        <label>Category</label>
-                        <p>${submission.category}</p>
-                    </div>
-                    <div class="detail-group">
-                        <label>Pricing</label>
-                        <p>${pricingBadge}</p>
-                    </div>
-                    <div class="detail-group">
-                        <label>Status</label>
-                        <p>${statusBadge}</p>
-                    </div>
-                    <div class="detail-group">
-                        <label>Website URL</label>
-                        <p><a href="${submission.url}" target="_blank">${submission.url}</a></p>
-                    </div>
-                </div>
-                <div class="submission-right">
-                    <div class="detail-group">
-                        <label>Description</label>
-                        <p>${submission.description}</p>
-                    </div>
-                    <div class="detail-group">
-                        <label>Features</label>
-                        <div class="feature-tags">
-                            ${featuresHTML}
-                        </div>
-                    </div>
-                    <div class="detail-group submitter-info">
-                        <label>Submitted By</label>
-                        <p><strong>${submission.submitter.name}</strong> (${submission.submitter.email})</p>
-                        <p>Date: ${formatDate(submission.date_submitted)}</p>
-                    </div>
-                </div>
-            </div>
-            ${submission.reelUrl ? `
-                <div class="submission-reel">
-                    <div class="detail-group">
-                        <label>Instagram Reel</label>
-                        <p><a href="${submission.reelUrl}" target="_blank">${submission.reelUrl}</a></p>
-                    </div>
-                </div>
-            ` : ''}
-            ${submission.status === 'rejected' && submission.rejectionReason ? `
-                <div class="detail-group">
-                    <label>Rejection Reason</label>
-                    <p>${submission.rejectionReason}</p>
-                </div>
-            ` : ''}
-        `;
-        
-        elements.submissionDetails.innerHTML = detailsHTML;
     }
     
     /**
-     * Open submission modal
+     * Show submission details modal
      */
-    function openSubmissionModal() {
+    function showSubmissionDetails(submissionId) {
+        const submission = allSubmissions.find(s => s.id === submissionId);
+        if (!submission || !elements.submissionModal || !elements.overlay) return;
+        
+        if (elements.modalTitle) elements.modalTitle.textContent = submission.name;
+        if (elements.submissionDetails) elements.submissionDetails.innerHTML = createSubmissionDetailsHTML(submission);
+        
+        // Set current submission for modal actions
+        currentSubmissionId = submissionId;
+        
+        // Show/hide action buttons based on status
+        if (submission.status === 'pending') {
+            if (elements.approveBtn) elements.approveBtn.style.display = 'inline-flex';
+            if (elements.rejectBtn) elements.rejectBtn.style.display = 'inline-flex';
+        } else {
+            if (elements.approveBtn) elements.approveBtn.style.display = 'none';
+            if (elements.rejectBtn) elements.rejectBtn.style.display = 'none';
+        }
+        
         elements.submissionModal.classList.add('active');
         elements.overlay.classList.add('active');
-        document.body.classList.add('scroll-lock');
     }
     
     /**
-     * Close submission modal
+     * Create submission details HTML
+     */
+    function createSubmissionDetailsHTML(submission) {
+        return `
+            <div class="submission-details-grid">
+                <div class="detail-group">
+                    <label>Tool Name:</label>
+                    <p>${submission.name}</p>
+                </div>
+                
+                <div class="detail-group">
+                    <label>Description:</label>
+                    <p>${submission.description || submission.tool_description || 'No description provided'}</p>
+                </div>
+                
+                <div class="detail-group">
+                    <label>Category:</label>
+                    <p>${submission.category || submission.tool_category}</p>
+                </div>
+                
+                <div class="detail-group">
+                    <label>Pricing:</label>
+                    <p>${submission.pricing_type || submission.pricing || 'Not specified'}</p>
+                </div>
+                
+                <div class="detail-group">
+                    <label>Website URL:</label>
+                    <p><a href="${submission.url || submission.tool_url}" target="_blank">${submission.url || submission.tool_url}</a></p>
+                </div>
+                
+                <div class="detail-group">
+                    <label>Contributor:</label>
+                    <p>${submission.contributor_name || 'Anonymous'}</p>
+                </div>
+                
+                <div class="detail-group">
+                    <label>Email:</label>
+                    <p>${submission.contributor_email || 'Not provided'}</p>
+                </div>
+                
+                <div class="detail-group">
+                    <label>Submitted:</label>
+                    <p>${formatDate(submission.created_at)}</p>
+                </div>
+                
+                <div class="detail-group">
+                    <label>Status:</label>
+                    <p><span class="status-badge ${getStatusClass(submission.status)}">${capitalizeFirstLetter(submission.status)}</span></p>
+                </div>
+                
+                ${(submission.features || submission.tool_tags) ? `
+                    <div class="detail-group full-width">
+                        <label>Features:</label>
+                        <div class="features-list">
+                            ${(() => {
+                                const features = submission.features || submission.tool_tags;
+                                return Array.isArray(features) 
+                                    ? features.map(feature => `<span class="feature-tag">${feature.trim()}</span>`).join('')
+                                    : features.split(',').map(feature => `<span class="feature-tag">${feature.trim()}</span>`).join('');
+                            })()}
+                        </div>
+                    </div>
+                ` : ''}
+                
+                ${(submission.tags || submission.tool_tags) ? `
+                    <div class="detail-group full-width">
+                        <label>Tags:</label>
+                        <div class="tags-list">
+                            ${(() => {
+                                const tags = submission.tags || submission.tool_tags;
+                                return Array.isArray(tags) 
+                                    ? tags.map(tag => `<span class="tag">${tag.trim()}</span>`).join('')
+                                    : tags.split(',').map(tag => `<span class="tag">${tag.trim()}</span>`).join('');
+                            })()}
+                        </div>
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    }
+    
+    /**
+     * Modal event handlers
      */
     function closeSubmissionModal() {
-        elements.submissionModal.classList.remove('active');
-        elements.overlay.classList.remove('active');
-        document.body.classList.remove('scroll-lock');
-        state.currentSubmissionId = null;
+        if (elements.submissionModal) elements.submissionModal.classList.remove('active');
+        if (elements.overlay) elements.overlay.classList.remove('active');
+        currentSubmissionId = null;
     }
     
-    /**
-     * Show reject modal
-     * @param {Array} ids - Array of submission IDs to reject
-     */
-    function showRejectModal(ids) {
-        // Store IDs for rejection
-        state.rejectIds = ids;
-        
-        // Clear previous reason
-        elements.rejectReason.value = '';
-        
-        // Show modal
-        elements.rejectModal.classList.add('active');
-        elements.overlay.classList.add('active');
-        document.body.classList.add('scroll-lock');
-        
-        // Focus on reason textarea
-        elements.rejectReason.focus();
-    }
-    
-    /**
-     * Close reject modal
-     */
     function closeRejectModal() {
-        elements.rejectModal.classList.remove('active');
-        
-        // Only remove overlay and scroll lock if submission modal is not active
-        if (!elements.submissionModal.classList.contains('active')) {
-            elements.overlay.classList.remove('active');
-            document.body.classList.remove('scroll-lock');
+        if (elements.rejectModal) elements.rejectModal.classList.remove('active');
+        if (elements.overlay) elements.overlay.classList.remove('active');
+        if (elements.rejectReason) elements.rejectReason.value = '';
+        currentSubmissionId = null;
+    }
+    
+    function handleApproveFromModal() {
+        if (currentSubmissionId) {
+            approveSubmission([currentSubmissionId]);
+            closeSubmissionModal();
         }
+    }
+    
+    function handleRejectFromModal() {
+        if (currentSubmissionId && elements.rejectModal) {
+            elements.rejectModal.classList.add('active');
+            closeSubmissionModal();
+        }
+    }
+    
+    function handleConfirmReject() {
+        const reason = elements.rejectReason?.value.trim() || '';
+        const submissionIds = Array.isArray(currentSubmissionId) ? currentSubmissionId : [currentSubmissionId];
         
-        // Clear reject IDs
-        state.rejectIds = [];
+        rejectSubmission(submissionIds, reason);
+        closeRejectModal();
     }
     
     /**
-     * Confirm rejection with reason
+     * Pagination
      */
-    function confirmReject() {
-        const reason = elements.rejectReason.value.trim();
-        
-        // Validate reason
-        if (!reason) {
-            alert('Please provide a reason for rejection.');
+    function renderPagination(totalPages, currentPageNum) {
+        if (!elements.pagination || totalPages <= 1) {
+            if (elements.pagination) elements.pagination.innerHTML = '';
             return;
         }
         
-        // Close reject modal
-        closeRejectModal();
+        let paginationHTML = '';
         
-        // Show loading UI
-        elements.confirmRejectBtn.disabled = true;
-        elements.confirmRejectBtn.innerHTML = '<span class="material-icons-outlined">hourglass_top</span> Rejecting...';
+        // Previous button
+        paginationHTML += `
+            <button class="pagination-btn ${currentPageNum === 1 ? 'disabled' : ''}" 
+                    data-page="${currentPageNum - 1}" ${currentPageNum === 1 ? 'disabled' : ''}>
+                <span class="material-icons-outlined">chevron_left</span>
+            </button>
+        `;
         
-        // Process rejection for each ID
-        const rejections = state.rejectIds.map(id => {
-            return fetch(`/api/admin/submissions/${id}/reject`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ reason })
-            })
-            .then(response => {
-                if (!response.ok) {
-                    // Simulate success for demo
-                    return Promise.resolve({ success: true, id });
+        // Page numbers
+        for (let i = 1; i <= totalPages; i++) {
+            paginationHTML += `
+                <button class="pagination-btn ${i === currentPageNum ? 'active' : ''}" 
+                        data-page="${i}">${i}</button>
+            `;
+        }
+        
+        // Next button
+        paginationHTML += `
+            <button class="pagination-btn ${currentPageNum === totalPages ? 'disabled' : ''}" 
+                    data-page="${currentPageNum + 1}" ${currentPageNum === totalPages ? 'disabled' : ''}>
+                <span class="material-icons-outlined">chevron_right</span>
+            </button>
+        `;
+        
+        elements.pagination.innerHTML = paginationHTML;
+        
+        // Add event listeners to pagination buttons
+        document.querySelectorAll('.pagination-btn:not(.disabled)').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const page = parseInt(e.target.getAttribute('data-page'));
+                if (page && page !== currentPage) {
+                    currentPage = page;
+                    fetchSubmissions();
                 }
-                return response.json();
-            })
-            .catch(error => {
-                console.error(`Error rejecting submission ${id}:`, error);
-                return { success: false, id, error };
             });
         });
-        
-        // Wait for all rejections to complete
-        Promise.all(rejections)
-            .then(results => {
-                // Check if all were successful
-                const allSuccessful = results.every(result => result.success);
-                
-                if (allSuccessful) {
-                    // Show success message
-                    alert(`Successfully rejected ${results.length} submission(s).`);
-                    
-                    // Update submissions in state
-                    state.rejectIds.forEach(id => {
-                        const submission = state.submissions.find(s => s.id === id);
-                        if (submission) {
-                            submission.status = 'rejected';
-                            submission.rejectionReason = reason;
-                        }
-                    });
-                    
-                    // Close submission modal if open
-                    closeSubmissionModal();
-                    
-                    // Remove IDs from selected
-                    state.rejectIds.forEach(id => {
-                        const index = state.selectedIds.indexOf(id);
-                        if (index !== -1) {
-                            state.selectedIds.splice(index, 1);
-                        }
-                    });
-                    
-                    // Refresh table
-                    renderSubmissions();
-                } else {
-                    // Show error message
-                    const failedCount = results.filter(result => !result.success).length;
-                    alert(`Failed to reject ${failedCount} submission(s). Please try again.`);
-                }
-                
-                // Reset button
-                elements.confirmRejectBtn.disabled = false;
-                elements.confirmRejectBtn.innerHTML = '<span class="material-icons-outlined">cancel</span> Confirm Rejection';
-            });
     }
     
     /**
-     * Approve a submission
-     * @param {string} id - Submission ID
+     * Utility functions
      */
-    function approveSubmission(id) {
-        // If ID is an array, handle as bulk action
-        if (Array.isArray(id)) {
-            return approveSelected();
+    function getStatusClass(status) {
+        switch (status) {
+            case 'pending': return 'pending';
+            case 'approved': return 'approved';
+            case 'rejected': return 'rejected';
+            default: return 'pending';
         }
-        
-        // Show loading UI for specific button if in table
-        const approveBtn = document.querySelector(`.approve-btn[data-id="${id}"]`);
-        if (approveBtn) {
-            approveBtn.disabled = true;
-            approveBtn.innerHTML = '<span class="material-icons-outlined">hourglass_top</span>';
+    }
+    
+    function formatDate(dateString) {
+        const date = new Date(dateString);
+        return date.toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    }
+    
+    function capitalizeFirstLetter(string) {
+        return string.charAt(0).toUpperCase() + string.slice(1);
+    }
+    
+    function truncateText(text, maxLength) {
+        return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
+    }
+    
+    function debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func(...args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
+    }
+    
+    function showLoading() {
+        if (elements.submissionsTable) {
+            elements.submissionsTable.innerHTML = `
+                <tr class="loading-row">
+                    <td colspan="7">
+                        <div class="loading-indicator">
+                            <div class="loader"></div>
+                            <p>Loading...</p>
+                        </div>
+                    </td>
+                </tr>
+            `;
         }
-        
-        // Disable modal approve button if open
-        if (elements.approveBtn) {
-            elements.approveBtn.disabled = true;
-            elements.approveBtn.innerHTML = '<span class="material-icons-outlined">hourglass_top</span> Approving...';
+    }
+    
+    function hideLoading() {
+        // Loading is hidden when fetchSubmissions() is called and updates the table
+        // This function is here for consistency and future use
+    }
+    
+    function showError(message) {
+        if (elements.submissionsTable) {
+            elements.submissionsTable.innerHTML = `
+                <tr class="error-row">
+                    <td colspan="7">
+                        <div class="error-indicator">
+                            <span class="material-icons-outlined">error_outline</span>
+                            <p>${message}</p>
+                        </div>
+                    </td>
+                </tr>
+            `;
         }
+    }
+    
+    function showToast(message, type = 'success') {
+        const toast = document.createElement('div');
+        toast.className = `toast toast-${type}`;
+        toast.innerHTML = `
+            <span class="material-icons-outlined">${type === 'success' ? 'check_circle' : 'error'}</span>
+            <span>${message}</span>
+        `;
         
-        // Call API to approve
-        fetch(`/api/admin/submissions/${id}/approve`, {
-            method: 'POST'
-        })
-        .then(response => {
-            if (!response.ok) {
-                // Simulate success for demo
-                return Promise.resolve({ success: true });
+        document.body.appendChild(toast);
+        
+        setTimeout(() => {
+            toast.remove();
+        }, 3000);
+    }
+    
+    /**
+     * Mock data fallback
+     */
+    function getMockSubmissions() {
+        return [
+            {
+                id: 1,
+                name: 'AI Content Generator Pro',
+                description: 'Advanced AI tool for generating high-quality content',
+                category: 'Writing',
+                pricing_type: 'Freemium',
+                website_url: 'https://aicontentgen.pro',
+                contributor_name: 'John Doe',
+                contributor_email: 'john@example.com',
+                created_at: new Date().toISOString(),
+                status: 'pending'
             }
-            return response.json();
+        ];
+    }
+    
+    /**
+     * Notification Functions
+     */
+    
+    /**
+     * Mark all notifications as read
+     */
+    function markAllNotificationsAsRead() {
+        fetch('/api/admin/notifications/mark-all-read', {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            }
         })
+        .then(response => response.json())
         .then(data => {
             if (data.success) {
-                // Update submission in state
-                const submission = state.submissions.find(s => s.id === id);
-                if (submission) {
-                    submission.status = 'approved';
+                // Update UI
+                document.querySelectorAll('.notification-item').forEach(item => {
+                    item.classList.remove('unread');
+                });
+                if (elements.notificationBadge) {
+                    elements.notificationBadge.textContent = '0';
+                    elements.notificationBadge.style.display = 'none';
                 }
-                
-                // Close modal if open
-                closeSubmissionModal();
-                
-                // Remove ID from selected
-                const index = state.selectedIds.indexOf(id);
-                if (index !== -1) {
-                    state.selectedIds.splice(index, 1);
+                if (elements.submissionsBadge) {
+                    elements.submissionsBadge.style.display = 'none';
                 }
-                
-                // Refresh table
-                renderSubmissions();
-                
-                // Show success message
-                alert('Submission approved successfully.');
-            } else {
-                throw new Error('Failed to approve submission');
             }
         })
         .catch(error => {
-            console.error('Error approving submission:', error);
-            alert('Failed to approve submission. Please try again.');
-            
-            // Reset buttons
-            if (approveBtn) {
-                approveBtn.disabled = false;
-                approveBtn.innerHTML = '<span class="material-icons-outlined">check_circle</span>';
-            }
-            
-            if (elements.approveBtn) {
-                elements.approveBtn.disabled = false;
-                elements.approveBtn.innerHTML = '<span class="material-icons-outlined">check_circle</span> Approve';
-            }
+            console.error('Error marking notifications as read:', error);
         });
     }
-    
+
     /**
-     * Approve selected submissions
+     * Fetch notifications from API
      */
-    function approveSelected() {
-        if (state.selectedIds.length === 0) {
-            alert('No submissions selected.');
-            return;
-        }
-        
-        // Confirm approval
-        if (!confirm(`Are you sure you want to approve ${state.selectedIds.length} submission(s)?`)) {
-            return;
-        }
-        
-        // Show loading UI
-        elements.approveSelectedBtn.disabled = true;
-        elements.approveSelectedBtn.innerHTML = '<span class="material-icons-outlined">hourglass_top</span> Approving...';
-        
-        // Process approval for each ID
-        const approvals = state.selectedIds.map(id => {
-            return fetch(`/api/admin/submissions/${id}/approve`, {
-                method: 'POST'
-            })
-            .then(response => {
-                if (!response.ok) {
-                    // Simulate success for demo
-                    return Promise.resolve({ success: true, id });
+    function fetchNotifications() {
+        fetch('/api/admin/notifications')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    updateNotificationsUI(data.notifications, data.unreadCount);
                 }
-                return response.json();
             })
             .catch(error => {
-                console.error(`Error approving submission ${id}:`, error);
-                return { success: false, id, error };
-            });
-        });
-        
-        // Wait for all approvals to complete
-        Promise.all(approvals)
-            .then(results => {
-                // Check if all were successful
-                const allSuccessful = results.every(result => result.success);
-                
-                if (allSuccessful) {
-                    // Show success message
-                    alert(`Successfully approved ${results.length} submission(s).`);
-                    
-                    // Update submissions in state
-                    state.selectedIds.forEach(id => {
-                        const submission = state.submissions.find(s => s.id === id);
-                        if (submission) {
-                            submission.status = 'approved';
-                        }
-                    });
-                    
-                    // Clear selected IDs
-                    state.selectedIds = [];
-                    
-                    // Refresh table
-                    renderSubmissions();
-                } else {
-                    // Show error message
-                    const failedCount = results.filter(result => !result.success).length;
-                    alert(`Failed to approve ${failedCount} submission(s). Please try again.`);
-                }
-                
-                // Reset button
-                elements.approveSelectedBtn.disabled = false;
-                elements.approveSelectedBtn.innerHTML = '<span class="material-icons-outlined">check_circle</span> Approve Selected';
+                console.error('Error fetching notifications:', error);
             });
     }
-    
+
     /**
-     * Get mock submissions data filtered by status
-     * @param {Object} filters - Filter options
-     * @returns {Object} Mock submissions data
+     * Update notifications UI
      */
-    function getMockSubmissions(filters) {
-        // Generate 20 mock submissions
-        const allSubmissions = Array.from({ length: 20 }, (_, i) => {
-            const id = (i + 1).toString();
-            const submissionDate = new Date();
-            submissionDate.setDate(submissionDate.getDate() - Math.floor(Math.random() * 30));
-            
-            // For demo, distribute statuses
-            let status = 'pending';
-            if (i < 5) {
-                status = 'approved';
-            } else if (i >= 15) {
-                status = 'rejected';
-            }
-            
-            // Randomly assign categories
-            const categories = ['Productivity', 'Design', 'Writing', 'Education', 'Research', 'Development', 'Marketing'];
-            const category = categories[Math.floor(Math.random() * categories.length)];
-            
-            // Create name based on category
-            const names = {
-                'Productivity': ['TaskMaster AI', 'Productivity Boost', 'WorkflowGPT'],
-                'Design': ['DesignAI Pro', 'CreativeGPT', 'Visual Assistant'],
-                'Writing': ['WriterBot', 'ContentGPT', 'WordSmith AI'],
-                'Education': ['StudyBuddy AI', 'EduTech AI', 'Learning Assistant'],
-                'Research': ['ResearchGPT', 'Data Analyzer', 'Research Buddy'],
-                'Development': ['CodeGPT', 'DevAssist', 'Code Wizard'],
-                'Marketing': ['MarketingGPT', 'SEO Wizard', 'Campaign Creator']
-            };
-            
-            const nameOptions = names[category] || ['AI Tool'];
-            const name = nameOptions[Math.floor(Math.random() * nameOptions.length)] + ` ${id}`;
-            
-            // Create submitter info
-            const submitters = [
-                'john.doe@example.com',
-                'sarah.smith@example.com',
-                'michael.brown@example.com',
-                'emily.wilson@example.com',
-                'david.johnson@example.com'
-            ];
-            
-            return {
-                id,
-                name,
-                category,
-                status,
-                submitter: submitters[Math.floor(Math.random() * submitters.length)],
-                date_submitted: submissionDate.toISOString().split('T')[0]
-            };
-        });
-        
-        // Apply filters
-        let filteredSubmissions = [...allSubmissions];
-        
-        if (filters.status !== 'all') {
-            filteredSubmissions = filteredSubmissions.filter(s => s.status === filters.status);
-        }
-        
-        if (filters.category !== 'all') {
-            filteredSubmissions = filteredSubmissions.filter(s => s.category === filters.category);
-        }
-        
-        if (filters.date !== 'all') {
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            
-            const weekAgo = new Date(today);
-            weekAgo.setDate(weekAgo.getDate() - 7);
-            
-            const monthAgo = new Date(today);
-            monthAgo.setMonth(monthAgo.getMonth() - 1);
-            
-            filteredSubmissions = filteredSubmissions.filter(s => {
-                const submissionDate = new Date(s.date_submitted);
-                submissionDate.setHours(0, 0, 0, 0);
-                
-                switch (filters.date) {
-                    case 'today':
-                        return submissionDate.getTime() === today.getTime();
-                    case 'week':
-                        return submissionDate >= weekAgo;
-                    case 'month':
-                        return submissionDate >= monthAgo;
-                    default:
-                        return true;
-                }
-            });
-        }
-        
-        return {
-            submissions: filteredSubmissions
-        };
-    }
-    
-    /**
-     * Get detailed mock data for a submission
-     * @param {Object} submission - Basic submission data
-     * @returns {Object} Detailed submission data
-     */
-    function getMockSubmissionDetails(submission) {
-        // Generate random features based on category
-        const featuresByCategory = {
-            'Productivity': ['Task Management', 'Calendar Integration', 'Time Tracking', 'Automation'],
-            'Design': ['Image Generation', 'UI/UX Templates', 'Color Palette', 'Style Transfer'],
-            'Writing': ['Grammar Checking', 'Content Generation', 'SEO Optimization', 'Plagiarism Check'],
-            'Education': ['Quiz Generation', 'Learning Path', 'Progress Tracking', 'Flashcards'],
-            'Research': ['Data Analysis', 'Citation Manager', 'Paper Summarization', 'Trend Identification'],
-            'Development': ['Code Generation', 'Debugging', 'Code Review', 'API Integration'],
-            'Marketing': ['Campaign Management', 'Social Media Tools', 'A/B Testing', 'Analytics']
-        };
-        
-        const categoryFeatures = featuresByCategory[submission.category] || ['Feature 1', 'Feature 2'];
-        const features = [];
-        const featureCount = Math.floor(Math.random() * 3) + 1; // 1-3 features
-        
-        for (let i = 0; i < featureCount; i++) {
-            const feature = categoryFeatures[Math.floor(Math.random() * categoryFeatures.length)];
-            if (!features.includes(feature)) {
-                features.push(feature);
+    function updateNotificationsUI(notifications, unreadCount) {
+        // Update notification badge
+        if (elements.notificationBadge) {
+            if (unreadCount > 0) {
+                elements.notificationBadge.textContent = unreadCount;
+                elements.notificationBadge.style.display = 'block';
+            } else {
+                elements.notificationBadge.style.display = 'none';
             }
         }
-        
-        // Generate random description based on category
-        const descriptions = {
-            'Productivity': 'A powerful AI-powered productivity tool that helps you manage tasks, automate workflows, and save time on repetitive processes.',
-            'Design': 'An innovative design assistant that uses AI to generate professional visuals, recommend color palettes, and enhance your creative process.',
-            'Writing': 'An advanced writing tool powered by AI to help you create engaging content, check grammar, and optimize for SEO.',
-            'Education': 'A comprehensive learning platform that uses AI to create personalized study plans, generate quizzes, and track progress.',
-            'Research': 'A research assistant that uses AI to analyze data, summarize papers, and identify trends in your field of study.',
-            'Development': 'A coding companion that helps developers write better code faster with AI-powered suggestions, debugging, and code review.',
-            'Marketing': 'A marketing automation tool that uses AI to optimize campaigns, analyze performance, and identify growth opportunities.'
-        };
-        
-        // Random pricing model
-        const pricingOptions = ['free', 'freemium', 'paid'];
-        const pricing = pricingOptions[Math.floor(Math.random() * pricingOptions.length)];
-        
-        // Random image based on category
-        const imageId = 700 + parseInt(submission.id);
-        
-        // Create detailed submission object
-        return {
-            ...submission,
-            description: descriptions[submission.category] || 'An AI-powered tool designed to improve your workflow.',
-            url: `https://example.com/tool${submission.id}`,
-            image: `https://picsum.photos/id/${imageId}/600/400`,
-            features,
-            pricing,
-            submitter: {
-                name: submission.submitter.split('@')[0].replace('.', ' ').replace(/\b\w/g, l => l.toUpperCase()),
-                email: submission.submitter
-            },
-            reelUrl: Math.random() > 0.5 ? `https://www.instagram.com/reel/example${submission.id}/` : null,
-            rejectionReason: submission.status === 'rejected' ? 'This submission does not meet our quality standards.' : null
-        };
+
+        // Update submissions badge in sidebar
+        if (elements.submissionsBadge) {
+            const pendingSubmissions = notifications.filter(n => 
+                n.type === 'tool_submission' && !n.is_read
+            ).length;
+            
+            if (pendingSubmissions > 0) {
+                elements.submissionsBadge.textContent = pendingSubmissions;
+                elements.submissionsBadge.style.display = 'block';
+            } else {
+                elements.submissionsBadge.style.display = 'none';
+            }
+        }
+
+        // Update notification list
+        const notificationList = document.querySelector('.notification-list');
+        if (notificationList && notifications.length > 0) {
+            notificationList.innerHTML = notifications.slice(0, 5).map(notification => {
+                const timeAgo = getTimeAgo(new Date(notification.created_at));
+                const isUnread = !notification.is_read;
+                
+                return `
+                    <div class="notification-item ${isUnread ? 'unread' : ''}" data-id="${notification.id}">
+                        <span class="material-icons-outlined notification-icon">
+                            ${notification.type === 'tool_submission' ? 'add_circle' : 'info'}
+                        </span>
+                        <div class="notification-content">
+                            <p>${notification.message}</p>
+                            <span class="notification-time">${timeAgo}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            // Add click handlers to mark individual notifications as read
+            notificationList.querySelectorAll('.notification-item.unread').forEach(item => {
+                item.addEventListener('click', function() {
+                    const notificationId = this.dataset.id;
+                    markNotificationAsRead(notificationId, this);
+                });
+            });
+        } else if (notificationList) {
+            notificationList.innerHTML = `
+                <div class="notification-item">
+                    <span class="material-icons-outlined notification-icon">notifications_none</span>
+                    <div class="notification-content">
+                        <p>No notifications yet</p>
+                        <span class="notification-time">All caught up!</span>
+                    </div>
+                </div>
+            `;
+        }
     }
-    
+
     /**
-     * Format a date string to a readable format
-     * @param {string} dateString - ISO date string
-     * @returns {string} Formatted date
+     * Mark individual notification as read
      */
-    function formatDate(dateString) {
-        const options = { year: 'numeric', month: 'short', day: 'numeric' };
-        const date = new Date(dateString);
-        return date.toLocaleDateString('en-US', options);
+    function markNotificationAsRead(notificationId, element) {
+        fetch(`/api/admin/notifications/${notificationId}/read`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                element.classList.remove('unread');
+                // Refresh notifications to update counts
+                fetchNotifications();
+            }
+        })
+        .catch(error => {
+            console.error('Error marking notification as read:', error);
+        });
     }
-    
+
     /**
-     * Capitalize the first letter of a string
-     * @param {string} string - String to capitalize
-     * @returns {string} Capitalized string
+     * Get time ago string
      */
-    function capitalizeFirstLetter(string) {
-        return string.charAt(0).toUpperCase() + string.slice(1);
+    function getTimeAgo(date) {
+        const now = new Date();
+        const diffMs = now - date;
+        const diffMins = Math.floor(diffMs / 60000);
+        const diffHours = Math.floor(diffMs / 3600000);
+        const diffDays = Math.floor(diffMs / 86400000);
+
+        if (diffMins < 1) return 'Just now';
+        if (diffMins < 60) return `${diffMins} minute${diffMins > 1 ? 's' : ''} ago`;
+        if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+        if (diffDays === 1) return 'Yesterday';
+        if (diffDays < 7) return `${diffDays} days ago`;
+        
+        return date.toLocaleDateString();
     }
 });

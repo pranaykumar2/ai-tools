@@ -20,14 +20,6 @@ document.addEventListener('DOMContentLoaded', () => {
         notificationBadge: document.getElementById('notification-badge'),
         markAllRead: document.getElementById('mark-all-read'),
         
-        // Profile
-        profileBtn: document.getElementById('profile-btn'),
-        profileDropdown: document.getElementById('profile-dropdown'),
-        
-        // Logout
-        logoutBtn: document.getElementById('logout-btn'),
-        logoutDropdownBtn: document.getElementById('logout-dropdown-btn'),
-        
         // Stats
         totalToolsCount: document.getElementById('total-tools-count'),
         pendingSubmissionsCount: document.getElementById('pending-submissions-count'),
@@ -61,60 +53,53 @@ document.addEventListener('DOMContentLoaded', () => {
      */
     function setupEventListeners() {
         // Sidebar toggle
-        elements.toggleSidebar.addEventListener('click', () => {
-            elements.sidebar.classList.toggle('active');
-            elements.overlay.classList.toggle('active');
-            document.body.classList.toggle('scroll-lock');
-        });
+        if (elements.toggleSidebar) {
+            elements.toggleSidebar.addEventListener('click', () => {
+                elements.sidebar.classList.toggle('active');
+                if (elements.overlay) elements.overlay.classList.toggle('active');
+                document.body.classList.toggle('scroll-lock');
+            });
+        }
         
-        elements.closeSidebar.addEventListener('click', closeSidebar);
-        elements.overlay.addEventListener('click', closeSidebar);
+        if (elements.closeSidebar) {
+            elements.closeSidebar.addEventListener('click', closeSidebar);
+        }
+        
+        if (elements.overlay) {
+            elements.overlay.addEventListener('click', closeSidebar);
+        }
         
         // Notifications dropdown
-        elements.notificationBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            elements.notificationDropdown.classList.toggle('active');
-            elements.profileDropdown.classList.remove('active');
-        });
+        if (elements.notificationBtn) {
+            elements.notificationBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (elements.notificationDropdown) {
+                    elements.notificationDropdown.classList.toggle('active');
+                }
+            });
+        }
         
         // Mark all notifications as read
         if (elements.markAllRead) {
             elements.markAllRead.addEventListener('click', markAllNotificationsAsRead);
         }
         
-        // Profile dropdown
-        elements.profileBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            elements.profileDropdown.classList.toggle('active');
-            elements.notificationDropdown.classList.remove('active');
-        });
-        
         // Close dropdowns when clicking outside
         document.addEventListener('click', (e) => {
-            if (!elements.notificationBtn.contains(e.target) && 
+            if (elements.notificationBtn && elements.notificationDropdown && 
+                !elements.notificationBtn.contains(e.target) && 
                 !elements.notificationDropdown.contains(e.target)) {
                 elements.notificationDropdown.classList.remove('active');
             }
-            
-            if (!elements.profileBtn.contains(e.target) && 
-                !elements.profileDropdown.contains(e.target)) {
-                elements.profileDropdown.classList.remove('active');
-            }
         });
-        
-        // Logout buttons
-        elements.logoutBtn.addEventListener('click', handleLogout);
-        if (elements.logoutDropdownBtn) {
-            elements.logoutDropdownBtn.addEventListener('click', handleLogout);
-        }
     }
     
     /**
      * Close sidebar
      */
     function closeSidebar() {
-        elements.sidebar.classList.remove('active');
-        elements.overlay.classList.remove('active');
+        if (elements.sidebar) elements.sidebar.classList.remove('active');
+        if (elements.overlay) elements.overlay.classList.remove('active');
         document.body.classList.remove('scroll-lock');
     }
     
@@ -122,68 +107,177 @@ document.addEventListener('DOMContentLoaded', () => {
      * Mark all notifications as read
      */
     function markAllNotificationsAsRead() {
-        document.querySelectorAll('.notification-item').forEach(item => {
-            item.classList.remove('unread');
+        fetch('/api/admin/notifications/mark-all-read', {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Update UI
+                document.querySelectorAll('.notification-item').forEach(item => {
+                    item.classList.remove('unread');
+                });
+                if (elements.notificationBadge) {
+                    elements.notificationBadge.textContent = '0';
+                    elements.notificationBadge.style.display = 'none';
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Error marking notifications as read:', error);
         });
-        elements.notificationBadge.textContent = '0';
-        elements.notificationBadge.style.display = 'none';
     }
-    
+
     /**
-     * Handle logout
+     * Fetch notifications from API
      */
-    function handleLogout() {
-        // In a real app, you would perform a logout API request here
-        alert('Logging out...');
-        window.location.href = '../index.html';
+    function fetchNotifications() {
+        fetch('/api/admin/notifications')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    updateNotificationsUI(data.notifications, data.unreadCount);
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching notifications:', error);
+            });
+    }
+
+    /**
+     * Update notifications UI
+     */
+    function updateNotificationsUI(notifications, unreadCount) {
+        // Update notification badge
+        if (elements.notificationBadge) {
+            if (unreadCount > 0) {
+                elements.notificationBadge.textContent = unreadCount;
+                elements.notificationBadge.style.display = 'block';
+            } else {
+                elements.notificationBadge.style.display = 'none';
+            }
+        }
+
+        // Update submissions badge in sidebar
+        if (elements.submissionsBadge) {
+            const pendingSubmissions = notifications.filter(n => 
+                n.type === 'tool_submission' && !n.is_read
+            ).length;
+            
+            if (pendingSubmissions > 0) {
+                elements.submissionsBadge.textContent = pendingSubmissions;
+                elements.submissionsBadge.style.display = 'block';
+            } else {
+                elements.submissionsBadge.style.display = 'none';
+            }
+        }
+
+        // Update notification list
+        const notificationList = document.querySelector('.notification-list');
+        if (notificationList && notifications.length > 0) {
+            notificationList.innerHTML = notifications.slice(0, 5).map(notification => {
+                const timeAgo = getTimeAgo(new Date(notification.created_at));
+                const isUnread = !notification.is_read;
+                
+                return `
+                    <div class="notification-item ${isUnread ? 'unread' : ''}" data-id="${notification.id}">
+                        <span class="material-icons-outlined notification-icon">
+                            ${notification.type === 'tool_submission' ? 'add_circle' : 'info'}
+                        </span>
+                        <div class="notification-content">
+                            <p>${notification.message}</p>
+                            <span class="notification-time">${timeAgo}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            // Add click handlers to mark individual notifications as read
+            notificationList.querySelectorAll('.notification-item.unread').forEach(item => {
+                item.addEventListener('click', function() {
+                    const notificationId = this.dataset.id;
+                    markNotificationAsRead(notificationId, this);
+                });
+            });
+        }
+    }
+
+    /**
+     * Mark individual notification as read
+     */
+    function markNotificationAsRead(notificationId, element) {
+        fetch(`/api/admin/notifications/${notificationId}/read`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                element.classList.remove('unread');
+                // Refresh notifications to update counts
+                fetchNotifications();
+            }
+        })
+        .catch(error => {
+            console.error('Error marking notification as read:', error);
+        });
+    }
+
+    /**
+     * Get time ago string
+     */
+    function getTimeAgo(date) {
+        const now = new Date();
+        const diffMs = now - date;
+        const diffMins = Math.floor(diffMs / 60000);
+        const diffHours = Math.floor(diffMs / 3600000);
+        const diffDays = Math.floor(diffMs / 86400000);
+
+        if (diffMins < 1) return 'Just now';
+        if (diffMins < 60) return `${diffMins} minute${diffMins > 1 ? 's' : ''} ago`;
+        if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+        if (diffDays === 1) return 'Yesterday';
+        if (diffDays < 7) return `${diffDays} days ago`;
+        
+        return date.toLocaleDateString();
     }
     
     /**
      * Fetch dashboard data from API
      */
     function fetchDashboardData() {
-        // Fetch statistics
         fetchStatistics();
-        
-        // Fetch recent submissions
         fetchRecentSubmissions();
-        
-        // Fetch categories distribution for chart
         fetchCategoriesDistribution();
-        
-        // Fetch popular tools
         fetchPopularTools();
+        fetchNotifications();
     }
     
     /**
      * Fetch statistics for dashboard
      */
     function fetchStatistics() {
-        // In a real app, this would be an API call
-        // Fetch dashboard statistics
         fetch('/api/admin/stats')
-            .then(response => {
-                if (!response.ok) {
-                    return Promise.resolve({
-                        totalTools: 42,
-                        pendingSubmissions: 7,
-                        avgRating: 4.3,
-                        contributors: 28
-                    });
-                }
-                return response.json();
-            })
+            .then(response => response.json())
             .then(data => {
-                // Update statistics in the UI
-                if (elements.totalToolsCount) elements.totalToolsCount.textContent = data.totalTools;
-                if (elements.pendingSubmissionsCount) elements.pendingSubmissionsCount.textContent = data.pendingSubmissions;
-                if (elements.avgRating) elements.avgRating.textContent = data.avgRating;
-                if (elements.contributorsCount) elements.contributorsCount.textContent = data.contributors;
-                
-                // Update badges
-                if (elements.submissionsBadge) {
-                    elements.submissionsBadge.textContent = data.pendingSubmissions;
-                    elements.submissionsBadge.style.display = data.pendingSubmissions > 0 ? 'flex' : 'none';
+                if (data.success && data.stats) {
+                    const stats = data.stats;
+                    if (elements.totalToolsCount) elements.totalToolsCount.textContent = stats.totalTools;
+                    if (elements.pendingSubmissionsCount) elements.pendingSubmissionsCount.textContent = stats.pendingSubmissions;
+                    if (elements.avgRating) elements.avgRating.textContent = stats.avgRating;
+                    if (elements.contributorsCount) elements.contributorsCount.textContent = stats.contributors;
+                    
+                    if (elements.submissionsBadge) {
+                        elements.submissionsBadge.textContent = stats.pendingSubmissions;
+                        elements.submissionsBadge.style.display = stats.pendingSubmissions > 0 ? 'flex' : 'none';
+                    }
+                } else {
+                    throw new Error('Invalid response format');
                 }
             })
             .catch(error => {
@@ -194,7 +288,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (elements.avgRating) elements.avgRating.textContent = '4.3';
                 if (elements.contributorsCount) elements.contributorsCount.textContent = '28';
                 
-                // Update badges
                 if (elements.submissionsBadge) {
                     elements.submissionsBadge.textContent = '7';
                     elements.submissionsBadge.style.display = 'flex';
@@ -208,34 +301,29 @@ document.addEventListener('DOMContentLoaded', () => {
     function fetchRecentSubmissions() {
         if (!elements.recentSubmissionsTable) return;
         
-        // In a real app, this would be an API call
-        fetch('/api/admin/submissions?limit=5')
-            .then(response => {
-                if (!response.ok) {
-                    return Promise.resolve(getMockSubmissions());
-                }
-                return response.json();
-            })
+        fetch('/api/admin/submissions?status=pending&limit=5')
+            .then(response => response.json())
             .then(data => {
-                // Create table rows
-                const submissionsHTML = data.submissions.map(submission => createSubmissionRow(submission)).join('');
-                elements.recentSubmissionsTable.innerHTML = submissionsHTML;
-                
-                // Add event listeners to action buttons
-                document.querySelectorAll('.view-submission-btn').forEach(btn => {
-                    btn.addEventListener('click', () => {
-                        const submissionId = btn.getAttribute('data-id');
-                        window.location.href = `submissions.html?id=${submissionId}`;
+                if (data.success && data.submissions) {
+                    const submissionsHTML = data.submissions.map(submission => createSubmissionRow(submission)).join('');
+                    elements.recentSubmissionsTable.innerHTML = submissionsHTML;
+                    
+                    document.querySelectorAll('.view-submission-btn').forEach(btn => {
+                        btn.addEventListener('click', () => {
+                            const submissionId = btn.getAttribute('data-id');
+                            window.location.href = `submissions.html?id=${submissionId}`;
+                        });
                     });
-                });
+                } else {
+                    throw new Error('Invalid response format');
+                }
             })
             .catch(error => {
                 console.error('Error fetching submissions:', error);
-                // Use fallback data
-                const submissionsHTML = getMockSubmissions().submissions.map(submission => createSubmissionRow(submission)).join('');
+                const mockSubmissions = getMockSubmissions();
+                const submissionsHTML = mockSubmissions.submissions.map(submission => createSubmissionRow(submission)).join('');
                 elements.recentSubmissionsTable.innerHTML = submissionsHTML;
                 
-                // Add event listeners to action buttons
                 document.querySelectorAll('.view-submission-btn').forEach(btn => {
                     btn.addEventListener('click', () => {
                         const submissionId = btn.getAttribute('data-id');
@@ -247,29 +335,21 @@ document.addEventListener('DOMContentLoaded', () => {
     
     /**
      * Create HTML for a submission row
-     * @param {Object} submission - Submission object
-     * @returns {string} HTML for submission row
      */
     function createSubmissionRow(submission) {
         let statusClass = '';
         switch (submission.status) {
-            case 'pending':
-                statusClass = 'pending';
-                break;
-            case 'approved':
-                statusClass = 'approved';
-                break;
-            case 'rejected':
-                statusClass = 'rejected';
-                break;
+            case 'pending': statusClass = 'pending'; break;
+            case 'approved': statusClass = 'approved'; break;
+            case 'rejected': statusClass = 'rejected'; break;
         }
         
         return `
             <tr>
                 <td>${submission.name}</td>
                 <td>${submission.category}</td>
-                <td>${submission.submitter}</td>
-                <td>${formatDate(submission.date_submitted)}</td>
+                <td>${submission.contributor_name || 'Anonymous'}</td>
+                <td>${formatDate(submission.created_at)}</td>
                 <td>
                     <span class="status-badge ${statusClass}">
                         ${capitalizeFirstLetter(submission.status)}
@@ -292,80 +372,88 @@ document.addEventListener('DOMContentLoaded', () => {
     function fetchCategoriesDistribution() {
         if (!elements.categoriesChart) return;
         
-        // In a real app, this would be an API call
-        fetch('/api/admin/categories-distribution')
-            .then(response => {
-                if (!response.ok) {
-                    return Promise.resolve({
-                        labels: ['Productivity', 'Design', 'Writing', 'Education', 'Research', 'Development', 'Marketing'],
-                        data: [28, 23, 18, 15, 12, 10, 8]
-                    });
-                }
-                return response.json();
-            })
+        fetch('/api/admin/categories')
+            .then(response => response.json())
             .then(data => {
-                // Remove placeholder
-                elements.categoriesChart.innerHTML = '';
-                
-                // Create canvas for chart
-                const canvas = document.createElement('canvas');
-                elements.categoriesChart.appendChild(canvas);
-                
-                // Create chart
-                new Chart(canvas, {
-                    type: 'doughnut',
-                    data: {
-                        labels: data.labels,
-                        datasets: [{
-                            data: data.data,
-                            backgroundColor: [
-                                '#4361ee', // Primary
-                                '#f72585', // Secondary
-                                '#10b981', // Success
-                                '#ff9800', // Warning
-                                '#6c757d', // Gray
-                                '#6610f2', // Purple
-                                '#0dcaf0'  // Cyan
-                            ],
-                            borderWidth: 0
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: {
-                                position: 'right',
-                                labels: {
-                                    font: {
-                                        family: 'Plus Jakarta Sans'
-                                    }
-                                }
-                            },
-                            tooltip: {
-                                callbacks: {
-                                    label: function(context) {
-                                        const label = context.label || '';
-                                        const value = context.raw || 0;
-                                        const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                                        const percentage = ((value / total) * 100).toFixed(1);
-                                        return `${label}: ${value} (${percentage}%)`;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                });
+                if (data.success && data.distribution) {
+                    const chartData = {
+                        labels: data.distribution.map(item => item.category),
+                        data: data.distribution.map(item => item.count)
+                    };
+                    createCategoriesChart(chartData);
+                } else {
+                    throw new Error('Invalid response format');
+                }
             })
             .catch(error => {
                 console.error('Error fetching categories distribution:', error);
-                elements.categoriesChart.innerHTML = `
-                    <div class="chart-placeholder">
-                        <span class="material-icons-outlined">error_outline</span>
-                        <p>Failed to load chart</p>
-                    </div>
-                `;
+                const fallbackData = {
+                    labels: ['Productivity', 'Design', 'Writing', 'Education', 'Research', 'Development', 'Marketing'],
+                    data: [28, 23, 18, 15, 12, 10, 8]
+                };
+                createCategoriesChart(fallbackData);
             });
+    }
+    
+    /**
+     * Create categories chart
+     */
+    function createCategoriesChart(data) {
+        if (!elements.categoriesChart) return;
+        
+        elements.categoriesChart.innerHTML = '';
+        
+        // Check if Chart.js is available
+        if (typeof Chart === 'undefined') {
+            elements.categoriesChart.innerHTML = `
+                <div class="chart-placeholder">
+                    <span class="material-icons-outlined">bar_chart</span>
+                    <p>Chart.js not loaded</p>
+                </div>
+            `;
+            return;
+        }
+        
+        const canvas = document.createElement('canvas');
+        elements.categoriesChart.appendChild(canvas);
+        
+        new Chart(canvas, {
+            type: 'doughnut',
+            data: {
+                labels: data.labels,
+                datasets: [{
+                    data: data.data,
+                    backgroundColor: [
+                        '#4361ee', '#f72585', '#10b981', '#ff9800', 
+                        '#6c757d', '#6610f2', '#0dcaf0'
+                    ],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                        labels: {
+                            font: { family: 'Plus Jakarta Sans' }
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.label || '';
+                                const value = context.raw || 0;
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const percentage = ((value / total) * 100).toFixed(1);
+                                return `${label}: ${value} (${percentage}%)`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
     }
     
     /**
@@ -374,171 +462,103 @@ document.addEventListener('DOMContentLoaded', () => {
     function fetchPopularTools() {
         if (!elements.popularToolsList) return;
         
-        // In a real app, this would be an API call
-        fetch('/api/admin/popular-tools')
-            .then(response => {
-                if (!response.ok) {
-                    return Promise.resolve(getMockPopularTools());
-                }
-                return response.json();
-            })
+        fetch('/api/admin/tools?status=approved&limit=5')
+            .then(response => response.json())
             .then(data => {
-                // Create popular tools list
-                const toolsHTML = data.tools.map(tool => {
-                    return `
-                        <div class="popular-tool-item">
-                            <img src="${tool.image}" alt="${tool.name}" class="popular-tool-image">
-                            <div class="popular-tool-info">
-                                <h3 class="popular-tool-name">${tool.name}</h3>
-                                <p class="popular-tool-category">${tool.category}</p>
-                            </div>
-                            <div class="popular-tool-rating">
-                                <span class="material-icons-outlined">star</span>
-                                ${tool.rating}
-                            </div>
-                        </div>
-                    `;
-                }).join('');
-                
-                elements.popularToolsList.innerHTML = toolsHTML;
+                if (data.success && data.tools) {
+                    const toolsHTML = data.tools.map(tool => createPopularToolItem(tool)).join('');
+                    elements.popularToolsList.innerHTML = toolsHTML;
+                } else {
+                    throw new Error('Invalid response format');
+                }
             })
             .catch(error => {
                 console.error('Error fetching popular tools:', error);
-                // Use fallback data
-                const toolsHTML = getMockPopularTools().tools.map(tool => {
-                    return `
-                        <div class="popular-tool-item">
-                            <img src="${tool.image}" alt="${tool.name}" class="popular-tool-image">
-                            <div class="popular-tool-info">
-                                <h3 class="popular-tool-name">${tool.name}</h3>
-                                <p class="popular-tool-category">${tool.category}</p>
-                            </div>
-                            <div class="popular-tool-rating">
-                                <span class="material-icons-outlined">star</span>
-                                ${tool.rating}
-                            </div>
-                        </div>
-                    `;
-                }).join('');
-                
+                const mockTools = getMockPopularTools();
+                const toolsHTML = mockTools.tools.map(tool => createPopularToolItem(tool)).join('');
                 elements.popularToolsList.innerHTML = toolsHTML;
             });
     }
     
     /**
-     * Get mock submissions data
-     * @returns {Object} Mock submissions data
+     * Create popular tool item HTML
+     */
+    function createPopularToolItem(tool) {
+        return `
+            <div class="popular-tool-item">
+                <img src="${tool.image_url || '../assets/default-tool.png'}" alt="${tool.name}" class="popular-tool-image" onerror="this.src='../assets/default-tool.png'">
+                <div class="popular-tool-info">
+                    <h3 class="popular-tool-name">${tool.name}</h3>
+                    <p class="popular-tool-category">${tool.category}</p>
+                </div>
+                <div class="popular-tool-rating">
+                    <span class="rating-stars">${'★'.repeat(Math.floor(tool.rating || 0))}</span>
+                    <span class="rating-value">${tool.rating || 0}</span>
+                </div>
+            </div>
+        `;
+    }
+    
+    /**
+     * Utility functions
+     */
+    function formatDate(dateString) {
+        const date = new Date(dateString);
+        return date.toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+        });
+    }
+    
+    function capitalizeFirstLetter(string) {
+        return string.charAt(0).toUpperCase() + string.slice(1);
+    }
+    
+    /**
+     * Mock data fallbacks
      */
     function getMockSubmissions() {
         return {
             submissions: [
                 {
-                    id: '1',
-                    name: 'AI Text Generator',
+                    id: 1,
+                    name: 'AI Text Generator Pro',
                     category: 'Writing',
-                    submitter: 'john.doe@example.com',
-                    date_submitted: '2025-07-21',
+                    contributor_name: 'John Doe',
+                    created_at: new Date().toISOString(),
                     status: 'pending'
                 },
                 {
-                    id: '2',
-                    name: 'DesignAI Pro',
+                    id: 2,
+                    name: 'Smart Image Editor',
                     category: 'Design',
-                    submitter: 'sarah.smith@example.com',
-                    date_submitted: '2025-07-20',
-                    status: 'approved'
-                },
-                {
-                    id: '3',
-                    name: 'Code Assistant Pro',
-                    category: 'Development',
-                    submitter: 'michael.brown@example.com',
-                    date_submitted: '2025-07-19',
-                    status: 'pending'
-                },
-                {
-                    id: '4',
-                    name: 'Research Buddy',
-                    category: 'Research',
-                    submitter: 'emily.wilson@example.com',
-                    date_submitted: '2025-07-18',
-                    status: 'rejected'
-                },
-                {
-                    id: '5',
-                    name: 'MarketingGPT',
-                    category: 'Marketing',
-                    submitter: 'david.johnson@example.com',
-                    date_submitted: '2025-07-17',
+                    contributor_name: 'Jane Smith',
+                    created_at: new Date(Date.now() - 86400000).toISOString(),
                     status: 'pending'
                 }
             ]
         };
     }
     
-    /**
-     * Get mock popular tools data
-     * @returns {Object} Mock popular tools data
-     */
     function getMockPopularTools() {
         return {
             tools: [
                 {
-                    id: '1',
-                    name: 'DesignAI Pro',
-                    category: 'Design',
-                    image: 'https://picsum.photos/id/237/200/200',
-                    rating: 4.9
-                },
-                {
-                    id: '2',
-                    name: 'WriterBot',
+                    id: 1,
+                    name: 'ChatGPT',
                     category: 'Writing',
-                    image: 'https://picsum.photos/id/238/200/200',
-                    rating: 4.8
+                    rating: 4.8,
+                    image_url: '../assets/default-tool.png'
                 },
                 {
-                    id: '3',
-                    name: 'Code Assistant',
-                    category: 'Development',
-                    image: 'https://picsum.photos/id/239/200/200',
-                    rating: 4.7
-                },
-                {
-                    id: '4',
-                    name: 'ProductivityAI',
-                    category: 'Productivity',
-                    image: 'https://picsum.photos/id/240/200/200',
-                    rating: 4.6
-                },
-                {
-                    id: '5',
-                    name: 'EduTech AI',
-                    category: 'Education',
-                    image: 'https://picsum.photos/id/241/200/200',
-                    rating: 4.5
+                    id: 2,
+                    name: 'DALL-E',
+                    category: 'Design',
+                    rating: 4.6,
+                    image_url: '../assets/default-tool.png'
                 }
             ]
         };
-    }
-    
-    /**
-     * Format a date string to a readable format
-     * @param {string} dateString - ISO date string
-     * @returns {string} Formatted date
-     */
-    function formatDate(dateString) {
-        const options = { year: 'numeric', month: 'short', day: 'numeric' };
-        const date = new Date(dateString);
-        return date.toLocaleDateString('en-US', options);
-    }
-    
-    /**
-     * Capitalize the first letter of a string
-     * @param {string} string - String to capitalize
-     * @returns {string} Capitalized string
-     */
-    function capitalizeFirstLetter(string) {
-        return string.charAt(0).toUpperCase() + string.slice(1);
     }
 });

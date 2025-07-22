@@ -111,7 +111,7 @@ app.get('/', (req, res) => {
 // API endpoint to get all tools
 app.get('/api/tools', async (req, res) => {
     try {
-        // Try to fetch from Supabase first
+        // Fetch from Supabase
         const { data: tools, error } = await supabase
             .from('ai_tools')
             .select('*')
@@ -120,13 +120,14 @@ app.get('/api/tools', async (req, res) => {
 
         if (error) {
             console.error('Supabase error:', error);
-            // Fallback to JSON file
-            const tools = readDatabase(TOOLS_DB_PATH);
-            return res.json({ success: true, tools });
+            return res.status(500).json({ 
+                success: false, 
+                message: 'Database error' 
+            });
         }
 
         // Transform Supabase data to match frontend format
-        const transformedTools = tools.map(tool => ({
+        const transformedTools = (tools || []).map(tool => ({
             id: tool.id,
             name: tool.tool_name,
             description: tool.tool_description,
@@ -228,8 +229,10 @@ app.post('/api/tools', upload.single('image'), async (req, res) => {
 
         if (supabaseError) {
             console.error('Supabase error:', supabaseError);
-            // Fallback to JSON file method
-            return handleJSONSubmission(req, res);
+            return res.status(500).json({ 
+                success: false, 
+                message: 'Database error while submitting tool' 
+            });
         }
 
         // If reel URL was provided, add to reels table (future feature)
@@ -241,6 +244,26 @@ app.post('/api/tools', upload.single('image'), async (req, res) => {
                     tool_name: name,
                     url: reelUrl
                 });
+        }
+
+        // Create notification for admin
+        try {
+            await supabase
+                .from('notifications')
+                .insert({
+                    type: 'tool_submission',
+                    title: 'New Tool Submission',
+                    message: `New tool "${name}" submitted by ${submitterName}`,
+                    tool_id: newTool.id,
+                    tool_name: name,
+                    submitter_name: submitterName,
+                    submitter_email: submitterEmail,
+                    is_read: false,
+                    created_at: new Date().toISOString()
+                });
+        } catch (notificationError) {
+            console.error('Failed to create notification:', notificationError);
+            // Don't fail the submission if notification creation fails
         }
 
         // Send notification email to admin
@@ -351,7 +374,7 @@ async function handleJSONSubmission(req, res) {
 // API endpoint to get all reels
 app.get('/api/reels', async (req, res) => {
     try {
-        // Try Supabase first (future implementation)
+        // Fetch from Supabase
         const { data: reels, error } = await supabase
             .from('reels')
             .select('*')
@@ -359,9 +382,10 @@ app.get('/api/reels', async (req, res) => {
 
         if (error) {
             console.error('Supabase reels error:', error);
-            // Fallback to JSON file
-            const reels = readDatabase(REELS_DB_PATH);
-            return res.json({ success: true, reels });
+            return res.status(500).json({ 
+                success: false, 
+                message: 'Database error' 
+            });
         }
 
         res.json({ success: true, reels: reels || [] });
@@ -399,6 +423,7 @@ app.get('/api/admin/tools', async (req, res) => {
 
 app.get('/api/admin/submissions', async (req, res) => {
     try {
+        // Get pending submissions from Supabase
         const { data: submissions, error } = await supabase
             .from('ai_tools')
             .select('*')
@@ -410,7 +435,33 @@ app.get('/api/admin/submissions', async (req, res) => {
             return res.status(500).json({ success: false, message: 'Database error' });
         }
 
-        res.json({ success: true, submissions: submissions || [] });
+        // Transform to match admin dashboard expectations
+        const transformedSubmissions = (submissions || []).map(tool => ({
+            id: tool.id,
+            // Fields expected by JavaScript
+            name: tool.tool_name,
+            category: tool.tool_category,
+            description: tool.tool_description,
+            url: tool.tool_url,
+            image: tool.tool_image,
+            pricing: tool.pricing_type,
+            tags: tool.tool_tags || [],
+            // Database field names for compatibility
+            tool_name: tool.tool_name,
+            tool_category: tool.tool_category,
+            tool_description: tool.tool_description,
+            tool_url: tool.tool_url,
+            tool_image: tool.tool_image,
+            pricing_type: tool.pricing_type,
+            tool_tags: tool.tool_tags || [],
+            contributor_name: tool.contributor_name || 'Unknown',
+            contributor_email: tool.contributor_email || '',
+            status: tool.status,
+            created_at: tool.created_at,
+            updated_at: tool.updated_at
+        }));
+
+        res.json({ success: true, submissions: transformedSubmissions });
     } catch (error) {
         console.error('Error fetching submissions:', error);
         res.status(500).json({ 
@@ -439,7 +490,11 @@ app.put('/api/admin/tools/:id/approve', async (req, res) => {
             return res.status(500).json({ success: false, message: 'Database error' });
         }
 
-        res.json({ success: true, message: 'Tool approved successfully', tool: data });
+        res.json({ 
+            success: true, 
+            message: 'Tool approved successfully', 
+            tool: data 
+        });
     } catch (error) {
         console.error('Error approving tool:', error);
         res.status(500).json({ 
@@ -458,7 +513,6 @@ app.put('/api/admin/tools/:id/reject', async (req, res) => {
             .from('ai_tools')
             .update({ 
                 status: 'rejected',
-                rejection_reason: reason || 'No reason provided',
                 updated_at: new Date().toISOString()
             })
             .eq('id', id)
@@ -470,7 +524,11 @@ app.put('/api/admin/tools/:id/reject', async (req, res) => {
             return res.status(500).json({ success: false, message: 'Database error' });
         }
 
-        res.json({ success: true, message: 'Tool rejected successfully', tool: data });
+        res.json({ 
+            success: true, 
+            message: 'Tool rejected successfully', 
+            tool: data 
+        });
     } catch (error) {
         console.error('Error rejecting tool:', error);
         res.status(500).json({ 
@@ -553,6 +611,60 @@ app.get('/api/admin/stats', async (req, res) => {
     }
 });
 
+app.get('/api/admin/categories', async (req, res) => {
+    try {
+        // Get categories distribution from Supabase
+        const { data: tools, error } = await supabase
+            .from('ai_tools')
+            .select('tool_category, status')
+            .eq('status', 'approved');
+
+        if (error) {
+            console.error('Supabase error:', error);
+            return res.status(500).json({ success: false, message: 'Database error' });
+        }
+
+        // Count tools by category
+        const categoryDistribution = {};
+        (tools || []).forEach(tool => {
+            const category = tool.tool_category || 'Uncategorized';
+            categoryDistribution[category] = (categoryDistribution[category] || 0) + 1;
+        });
+
+        // Convert to array format for charts
+        const distributionArray = Object.entries(categoryDistribution).map(([category, count]) => ({
+            category,
+            count,
+            percentage: tools?.length > 0 ? ((count / tools.length) * 100).toFixed(1) : '0'
+        }));
+
+        // Get all unique categories for filters
+        const { data: allCategories, error: categoriesError } = await supabase
+            .from('ai_tools')
+            .select('tool_category')
+            .not('tool_category', 'is', null);
+
+        if (categoriesError) {
+            console.error('Categories error:', categoriesError);
+            return res.status(500).json({ success: false, message: 'Failed to fetch categories' });
+        }
+
+        const uniqueCategories = [...new Set((allCategories || []).map(t => t.tool_category))];
+
+        res.json({ 
+            success: true, 
+            distribution: distributionArray,
+            categories: uniqueCategories
+        });
+    } catch (error) {
+        console.error('Error fetching categories:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Internal server error' 
+        });
+    }
+});
+
 // Contact form submission endpoint
 app.post('/api/contact', async (req, res) => {
     try {
@@ -593,6 +705,114 @@ app.post('/api/contact', async (req, res) => {
         res.status(500).json({ 
             success: false, 
             message: 'Sorry, there was an error sending your message. Please try again.' 
+        });
+    }
+});
+
+// API endpoint to get notifications
+app.get('/api/admin/notifications', async (req, res) => {
+    try {
+        const { data: notifications, error } = await supabase
+            .from('notifications')
+            .select('*')
+            .order('created_at', { ascending: false })
+            .limit(20);
+
+        if (error) {
+            console.error('Supabase error:', error);
+            return res.status(500).json({ 
+                success: false, 
+                message: 'Failed to fetch notifications' 
+            });
+        }
+
+        // Count unread notifications
+        const unreadCount = notifications.filter(notification => !notification.is_read).length;
+
+        res.json({ 
+            success: true, 
+            notifications: notifications || [],
+            unreadCount: unreadCount
+        });
+
+    } catch (error) {
+        console.error('Error fetching notifications:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Failed to fetch notifications' 
+        });
+    }
+});
+
+// API endpoint to mark notification as read
+app.put('/api/admin/notifications/:id/read', async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const { data: notification, error } = await supabase
+            .from('notifications')
+            .update({ 
+                is_read: true,
+                read_at: new Date().toISOString()
+            })
+            .eq('id', id)
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Supabase error:', error);
+            return res.status(500).json({ 
+                success: false, 
+                message: 'Failed to mark notification as read' 
+            });
+        }
+
+        res.json({ 
+            success: true, 
+            message: 'Notification marked as read',
+            notification 
+        });
+
+    } catch (error) {
+        console.error('Error marking notification as read:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Failed to mark notification as read' 
+        });
+    }
+});
+
+// API endpoint to mark all notifications as read
+app.put('/api/admin/notifications/mark-all-read', async (req, res) => {
+    try {
+        const { data: notifications, error } = await supabase
+            .from('notifications')
+            .update({ 
+                is_read: true,
+                read_at: new Date().toISOString()
+            })
+            .eq('is_read', false)
+            .select();
+
+        if (error) {
+            console.error('Supabase error:', error);
+            return res.status(500).json({ 
+                success: false, 
+                message: 'Failed to mark notifications as read' 
+            });
+        }
+
+        res.json({ 
+            success: true, 
+            message: 'All notifications marked as read',
+            updatedCount: notifications ? notifications.length : 0
+        });
+
+    } catch (error) {
+        console.error('Error marking all notifications as read:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Failed to mark all notifications as read' 
         });
     }
 });

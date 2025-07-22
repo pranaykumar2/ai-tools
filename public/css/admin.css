@@ -1171,3 +1171,63 @@ img {
         border-radius: 0;
     }
 }
+
+/* ===== TOAST NOTIFICATIONS ===== */
+.toast {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-md);
+    background: var(--surface);
+    border-radius: var(--border-radius-md);
+    box-shadow: var(--shadow-lg);
+    font-size: 14px;
+    font-weight: 500;
+    animation: toastSlideIn 0.3s ease;
+    max-width: 300px;
+    word-wrap: break-word;
+}
+
+.toast.toast-success {
+    border-left: 4px solid var(--success);
+    color: var(--success);
+}
+
+.toast.toast-error {
+    border-left: 4px solid var(--danger);
+    color: var(--danger);
+}
+
+.toast .material-icons-outlined {
+    font-size: 20px;
+}
+
+@keyframes toastSlideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* ===== LOADER ANIMATIONS ===== */
+.loader {
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--border);
+    border-top: 2px solid var(--primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}

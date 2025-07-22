@@ -133,7 +133,10 @@ function setupEventListeners() {
     // Sidebar toggle
     elements.toggleSidebar.addEventListener('click', toggleSidebar);
     elements.closeSidebar.addEventListener('click', closeSidebar);
-    elements.overlay.addEventListener('click', closeSidebar);
+    elements.overlay.addEventListener('click', () => {
+        closeSidebar();
+        closeWishlistModal();
+    });
     
     // Search
     elements.searchInput.addEventListener('input', handleSearchInput);
@@ -711,8 +714,8 @@ function createToolCard(tool) {
         return `<span class="tool-tag${isPro ? ' pro' : ''}">${tag}</span>`;
     }).join('');
     
-    // Check if tool is in wishlist
-    const isWishlisted = appState.wishlist.includes(tool.id);
+    // Check if tool is in wishlist (convert tool.id to string for comparison)
+    const isWishlisted = appState.wishlist.includes(String(tool.id));
     
     return `
         <div class="tool-card" data-id="${tool.id}">
@@ -939,7 +942,7 @@ function setViewMode(mode) {
  */
 function toggleWishlistItem(e) {
     const btn = e.currentTarget;
-    const toolId = btn.dataset.id;
+    const toolId = btn.dataset.id; // This is always a string from HTML
     
     // Toggle active state
     btn.classList.toggle('active');
@@ -1012,8 +1015,8 @@ function renderWishlistItems() {
     // Hide empty wishlist message
     elements.emptyWishlist.style.display = 'none';
     
-    // Get wishlist tools
-    const wishlistTools = appState.tools.filter(tool => appState.wishlist.includes(tool.id));
+    // Get wishlist tools (convert tool.id to string for comparison)
+    const wishlistTools = appState.tools.filter(tool => appState.wishlist.includes(String(tool.id)));
     
     // Generate wishlist items HTML
     const wishlistHTML = wishlistTools.map(tool => {

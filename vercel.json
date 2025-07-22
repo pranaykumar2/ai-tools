@@ -18,34 +18,84 @@
     "api/admin/stats.js": {
       "maxDuration": 10
     },
-    "api/admin/approve/[id].js": {
+    "api/admin/categories.js": {
+      "maxDuration": 10
+    },
+    "api/admin/notifications/index.js": {
+      "maxDuration": 10
+    },
+    "api/admin/notifications/mark-all-read.js": {
+      "maxDuration": 10
+    },
+    "api/admin/notifications/[id]/read.js": {
+      "maxDuration": 10
+    },
+    "api/admin/submissions/index.js": {
+      "maxDuration": 15
+    },
+    "api/admin/categories/index.js": {
+      "maxDuration": 10
+    },
+    "api/admin/stats/index.js": {
+      "maxDuration": 10
+    },
+    "api/admin/tools/[id]/approve.js": {
+      "maxDuration": 10
+    },
+    "api/admin/tools/[id]/delete.js": {
+      "maxDuration": 10
+    },
+    "api/admin/tools/[id]/reject.js": {
+      "maxDuration": 10
+    },
+    "api/admin/tools/index.js": {
+      "maxDuration": 10
+    },
+    "api/tools/submit.js": {
+      "maxDuration": 15
+    },
+    "api/tools/index.js": {
+      "maxDuration": 10
+    },
+    "api/contact/index.js": {
       "maxDuration": 10
     }
   },
   "rewrites": [
     {
       "source": "/",
-      "destination": "/index.html"
+      "destination": "/public/index.html"
     },
     {
       "source": "/tools",
-      "destination": "/list-tools.html"
+      "destination": "/public/list-tools.html"
     },
     {
       "source": "/contribute",
-      "destination": "/contribute.html"
+      "destination": "/public/contribute.html"
     },
     {
       "source": "/reels",
-      "destination": "/reels.html"
+      "destination": "/public/reels.html"
     },
     {
       "source": "/admin",
-      "destination": "/admin/index.html"
+      "destination": "/public/admin/index.html"
     },
     {
       "source": "/admin/submissions",
-      "destination": "/admin/submissions.html"
+      "destination": "/public/admin/submissions.html"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        { "key": "Access-Control-Allow-Credentials", "value": "true" },
+        { "key": "Access-Control-Allow-Origin", "value": "*" },
+        { "key": "Access-Control-Allow-Methods", "value": "GET,OPTIONS,PATCH,DELETE,POST,PUT" },
+        { "key": "Access-Control-Allow-Headers", "value": "X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version" }
+      ]
     }
   ]
 }

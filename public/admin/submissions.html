@@ -38,56 +38,6 @@
                             <span class="badge" id="submissions-badge">0</span>
                         </a>
                     </li>
-                    <li class="menu-item">
-                        <a href="tools.html">
-                            <span class="material-icons-outlined">apps</span>
-                            All Tools
-                        </a>
-                    </li>
-                    <li class="menu-item">
-                        <a href="reels.html">
-                            <span class="material-icons-outlined">video_library</span>
-                            Reels
-                        </a>
-                    </li>
-                </ul>
-                
-                <h3 class="menu-title">MANAGEMENT</h3>
-                <ul class="menu-items">
-                    <li class="menu-item">
-                        <a href="categories.html">
-                            <span class="material-icons-outlined">category</span>
-                            Categories
-                        </a>
-                    </li>
-                    <li class="menu-item">
-                        <a href="features.html">
-                            <span class="material-icons-outlined">auto_awesome</span>
-                            Features
-                        </a>
-                    </li>
-                    <li class="menu-item">
-                        <a href="users.html">
-                            <span class="material-icons-outlined">people</span>
-                            Users
-                        </a>
-                    </li>
-                </ul>
-                
-                <h3 class="menu-title">SETTINGS</h3>
-                <ul class="menu-items">
-                    <li class="menu-item">
-                        <a href="settings.html">
-                            <span class="material-icons-outlined">settings</span>
-                            Site Settings
-                        </a>
-                    </li>
-                    <li class="menu-item">
-                        <a href="profile.html">
-                            <span class="material-icons-outlined">account_circle</span>
-                            My Account
-                        </a>
-                    </li>
                 </ul>
             </div>
             
@@ -96,10 +46,6 @@
                     <span class="material-icons-outlined">public</span>
                     View Site
                 </a>
-                <button class="logout-btn" id="logout-btn">
-                    <span class="material-icons-outlined">logout</span>
-                    Logout
-                </button>
             </div>
         </aside>
         
@@ -126,18 +72,20 @@
                             <span class="badge" id="notification-badge">3</span>
                         </button>
                         <div class="notification-dropdown" id="notification-dropdown">
-                            <!-- Notification content (same as in index.html) -->
-                        </div>
-                    </div>
-                    
-                    <div class="admin-profile">
-                        <button class="profile-btn" id="profile-btn">
-                            <img src="../uploads/admin-avatar.jpg" alt="Admin" class="avatar">
-                            <span class="admin-name">Pranay Kumar</span>
-                            <span class="material-icons-outlined">arrow_drop_down</span>
-                        </button>
-                        <div class="profile-dropdown" id="profile-dropdown">
-                            <!-- Profile dropdown content (same as in index.html) -->
+                            <div class="notification-header">
+                                <h3>Notifications</h3>
+                                <button class="mark-all-read" id="mark-all-read">Mark all as read</button>
+                            </div>
+                            <div class="notification-list">
+                                <!-- Notifications will be loaded dynamically -->
+                                <div class="loading-indicator">
+                                    <div class="loader"></div>
+                                    <p>Loading notifications...</p>
+                                </div>
+                            </div>
+                            <div class="notification-footer">
+                                <a href="notifications.html">View all notifications</a>
+                            </div>
                         </div>
                     </div>
                 </div>
