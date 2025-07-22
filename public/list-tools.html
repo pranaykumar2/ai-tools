@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Tools Collection | AITools</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined">
+    <link rel="stylesheet" href="css/list-tools.css">
+</head>
+<body>
+    <!-- App Container -->
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-left">
+                <button class="toggle-sidebar" id="toggle-sidebar" aria-label="Toggle Sidebar">
+                    <span class="material-icons-outlined">menu</span>
+                </button>
+                <a href="index.html" class="app-logo">
+                    AI<span>Tools</span>
+                </a>
+            </div>
+            
+            <div class="header-center">
+                <div class="search-container">
+                    <span class="material-icons-outlined">search</span>
+                    <input type="text" id="search-input" placeholder="Search AI tools, categories, or features...">
+                    <button id="search-clear" class="search-clear">
+                        <span class="material-icons-outlined">close</span>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="header-right">
+                <a href="contribute.html" class="header-btn contribute-btn">
+                    <span class="material-icons-outlined">add_circle</span>
+                    <span class="btn-text">Contribute</span>
+                </a>
+                <a href="reels.html" class="header-btn reels-btn">
+                    <span class="material-icons-outlined">video_library</span>
+                    <span class="btn-text">Reels</span>
+                </a>
+                <button class="header-icon-btn wishlist-btn" id="open-wishlist" aria-label="Open Wishlist">
+                    <span class="material-icons-outlined">favorite</span>
+                    <span class="badge" id="wishlist-count">0</span>
+                </button>
+            </div>
+        </header>
+        
+        <!-- Main Content Area -->
+        <div class="main-content">
+            <!-- Sidebar for Filters -->
+            <aside class="sidebar" id="sidebar">
+                <div class="sidebar-header">
+                    <h2>Filters</h2>
+                    <button class="close-sidebar" id="close-sidebar" aria-label="Close Sidebar">
+                        <span class="material-icons-outlined">close</span>
+                    </button>
+                </div>
+                
+                <div class="sidebar-content">
+                    <!-- Categories Filter -->
+                    <div class="filter-section">
+                        <h3 class="filter-title">
+                            <span class="material-icons-outlined">category</span>
+                            Categories
+                        </h3>
+                        <div class="filter-list" id="category-filters">
+                            <!-- Categories will be dynamically populated here -->
+                            <div class="filter-skeleton">
+                                <div class="skeleton-checkbox"></div>
+                                <div class="skeleton-text"></div>
+                                <div class="skeleton-count"></div>
+                            </div>
+                            <div class="filter-skeleton">
+                                <div class="skeleton-checkbox"></div>
+                                <div class="skeleton-text"></div>
+                                <div class="skeleton-count"></div>
+                            </div>
+                            <div class="filter-skeleton">
+                                <div class="skeleton-checkbox"></div>
+                                <div class="skeleton-text"></div>
+                                <div class="skeleton-count"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Pricing Filter -->
+                    <div class="filter-section">
+                        <h3 class="filter-title">
+                            <span class="material-icons-outlined">attach_money</span>
+                            Pricing
+                        </h3>
+                        <div class="filter-list" id="pricing-filters">
+                            <!-- Pricing options will be dynamically populated here -->
+                            <div class="filter-skeleton">
+                                <div class="skeleton-checkbox"></div>
+                                <div class="skeleton-text"></div>
+                                <div class="skeleton-count"></div>
+                            </div>
+                            <div class="filter-skeleton">
+                                <div class="skeleton-checkbox"></div>
+                                <div class="skeleton-text"></div>
+                                <div class="skeleton-count"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Features Filter -->
+                    <div class="filter-section">
+                        <h3 class="filter-title">
+                            <span class="material-icons-outlined">auto_awesome</span>
+                            Features
+                        </h3>
+                        <div class="filter-list" id="feature-filters">
+                            <!-- Features will be dynamically populated here -->
+                            <div class="filter-skeleton">
+                                <div class="skeleton-checkbox"></div>
+                                <div class="skeleton-text"></div>
+                                <div class="skeleton-count"></div>
+                            </div>
+                            <div class="filter-skeleton">
+                                <div class="skeleton-checkbox"></div>
+                                <div class="skeleton-text"></div>
+                                <div class="skeleton-count"></div>
+                            </div>
+                            <div class="filter-skeleton">
+                                <div class="skeleton-checkbox"></div>
+                                <div class="skeleton-text"></div>
+                                <div class="skeleton-count"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button class="filter-reset-btn" id="reset-filters">
+                        <span class="material-icons-outlined">refresh</span>
+                        Reset All Filters
+                    </button>
+                </div>
+            </aside>
+            
+            <!-- Main Tools Container -->
+            <main class="tools-container">
+                <div class="tools-header">
+                    <div class="tools-info">
+                        <h1>AI Tools Collection</h1>
+                        <p class="tools-count" id="tools-count">Loading tools...</p>
+                    </div>
+                    
+                    <div class="tools-actions">
+                        <div class="view-toggle">
+                            <button class="view-btn active" id="grid-view" aria-label="Grid View">
+                                <span class="material-icons-outlined">grid_view</span>
+                            </button>
+                            <button class="view-btn" id="list-view" aria-label="List View">
+                                <span class="material-icons-outlined">view_list</span>
+                            </button>
+                        </div>
+                        
+                        <div class="sort-dropdown">
+                            <label for="sort-select">Sort:</label>
+                            <select id="sort-select" class="sort-select">
+                                <option value="popular">Most Popular</option>
+                                <option value="newest">Newest First</option>
+                                <option value="rating">Highest Rated</option>
+                                <option value="az">A to Z</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Tools Grid -->
+                <div class="tools-grid" id="tools-grid">
+                    <!-- Loading state -->
+                    <div class="loading-state" id="loading-state">
+                        <div class="loader"></div>
+                        <h2>Loading AI Tools</h2>
+                        <p>Please wait while we fetch the latest tools...</p>
+                    </div>
+                    
+                    <!-- Empty state (will be shown if no tools are found) -->
+                    <div class="empty-state" id="empty-state" style="display: none;">
+                        <span class="material-icons-outlined">search_off</span>
+                        <h2>No tools found</h2>
+                        <p>Try adjusting your filters or search criteria</p>
+                        <button id="empty-reset-btn" class="btn">Reset Filters</button>
+                    </div>
+                    
+                    <!-- Tools will be dynamically loaded here -->
+                </div>
+                
+                <!-- Pagination -->
+                <div class="pagination" id="pagination">
+                    <!-- Pagination will be dynamically generated -->
+                </div>
+            </main>
+        </div>
+    </div>
+    
+    <!-- Wishlist Modal -->
+    <div class="modal" id="wishlist-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Your Wishlist</h2>
+                <button id="close-wishlist" aria-label="Close Wishlist">
+                    <span class="material-icons-outlined">close</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <!-- Empty wishlist state -->
+                <div class="empty-wishlist" id="empty-wishlist">
+                    <span class="material-icons-outlined">favorite_border</span>
+                    <h3>Your wishlist is empty</h3>
+                    <p>Save your favorite AI tools to access them later!</p>
+                </div>
+                
+                <!-- Wishlist items container -->
+                <div class="wishlist-items" id="wishlist-items">
+                    <!-- Wishlist items will be dynamically added here -->
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Overlay -->
+    <div class="overlay" id="overlay"></div>
+    
+    <script src="js/list-tools.js"></script>
+</body>
+</html>
