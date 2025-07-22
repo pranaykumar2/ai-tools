@@ -22,6 +22,68 @@ export default async function handler(req, res) {
     }
 
     try {
+        const { pathname } = new URL(req.url, `http://${req.headers.host}`);
+        
+        // Handle /api/tools/submit endpoint
+        if (req.method === 'POST') {
+            const { toolName, toolDescription, toolWebsite, toolCategory, submitterName } = req.body;
+
+            // Basic validation
+            if (!toolName || !toolDescription || !toolWebsite || !toolCategory || !submitterName) {
+                return res.status(400).json({ 
+                    success: false, 
+                    message: 'All fields are required' 
+                });
+            }
+
+            // Insert new tool into database
+            const { data: tool, error: toolError } = await supabase
+                .from('ai_tools')
+                .insert([{
+                    tool_name: toolName,
+                    tool_description: toolDescription,
+                    tool_website: toolWebsite,
+                    tool_category: toolCategory,
+                    submitter_name: submitterName,
+                    approved: false,
+                    status: 'pending',
+                    created_at: new Date().toISOString()
+                }])
+                .select()
+                .single();
+
+            if (toolError) {
+                console.error('Tool insert error:', toolError);
+                return res.status(500).json({ 
+                    success: false, 
+                    message: 'Failed to submit tool' 
+                });
+            }
+
+            // Create notification for admin
+            const { error: notificationError } = await supabase
+                .from('notifications')
+                .insert([{
+                    type: 'new_tool',
+                    message: `New tool submitted: ${toolName} by ${submitterName}`,
+                    tool_id: tool.id,
+                    read: false,
+                    created_at: new Date().toISOString()
+                }]);
+
+            if (notificationError) {
+                console.error('Notification error:', notificationError);
+                // Don't fail the request if notification creation fails
+            }
+
+            return res.json({ 
+                success: true, 
+                message: 'Tool submitted successfully! It will be reviewed by our team.',
+                toolId: tool.id
+            });
+        }
+        
+        // Handle /api/tools endpoint (GET approved tools)
         if (req.method === 'GET') {
             // Get all approved tools
             const { data: tools, error } = await supabase

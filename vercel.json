@@ -1,63 +1,15 @@
 {
   "functions": {
-    "api/contact.js": {
-      "maxDuration": 10
-    },
     "api/tools.js": {
       "maxDuration": 15
     },
+    "api/admin.js": {
+      "maxDuration": 15
+    },
+    "api/contact.js": {
+      "maxDuration": 10
+    },
     "api/reels.js": {
-      "maxDuration": 10
-    },
-    "api/admin/tools.js": {
-      "maxDuration": 15
-    },
-    "api/admin/submissions.js": {
-      "maxDuration": 10
-    },
-    "api/admin/stats.js": {
-      "maxDuration": 10
-    },
-    "api/admin/categories.js": {
-      "maxDuration": 10
-    },
-    "api/admin/notifications/index.js": {
-      "maxDuration": 10
-    },
-    "api/admin/notifications/mark-all-read.js": {
-      "maxDuration": 10
-    },
-    "api/admin/notifications/[id]/read.js": {
-      "maxDuration": 10
-    },
-    "api/admin/submissions/index.js": {
-      "maxDuration": 15
-    },
-    "api/admin/categories/index.js": {
-      "maxDuration": 10
-    },
-    "api/admin/stats/index.js": {
-      "maxDuration": 10
-    },
-    "api/admin/tools/[id]/approve.js": {
-      "maxDuration": 10
-    },
-    "api/admin/tools/[id]/delete.js": {
-      "maxDuration": 10
-    },
-    "api/admin/tools/[id]/reject.js": {
-      "maxDuration": 10
-    },
-    "api/admin/tools/index.js": {
-      "maxDuration": 10
-    },
-    "api/tools/submit.js": {
-      "maxDuration": 15
-    },
-    "api/tools/index.js": {
-      "maxDuration": 10
-    },
-    "api/contact/index.js": {
       "maxDuration": 10
     }
   },
@@ -85,6 +37,30 @@
     {
       "source": "/admin/submissions",
       "destination": "/public/admin/submissions.html"
+    },
+    {
+      "source": "/api/tools/submit",
+      "destination": "/api/tools"
+    },
+    {
+      "source": "/api/admin/tools/(.*)",
+      "destination": "/api/admin"
+    },
+    {
+      "source": "/api/admin/submissions",
+      "destination": "/api/admin"
+    },
+    {
+      "source": "/api/admin/notifications/(.*)",
+      "destination": "/api/admin"
+    },
+    {
+      "source": "/api/admin/stats",
+      "destination": "/api/admin"
+    },
+    {
+      "source": "/api/admin/categories",
+      "destination": "/api/admin"
     }
   ],
   "headers": [

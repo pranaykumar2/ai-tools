@@ -228,7 +228,7 @@ document.addEventListener('DOMContentLoaded', () => {
         formData.set('features', features.join(','));
         
         // Send data to server
-        fetch('/api/tools/submit', {
+        fetch('/api/tools', {
             method: 'POST',
             body: formData
         })
