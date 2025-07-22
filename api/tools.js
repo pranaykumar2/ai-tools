@@ -26,35 +26,50 @@ export default async function handler(req, res) {
         
         // Handle POST requests (tool submission)
         if (req.method === 'POST') {
-            // Handle form data - check if it's FormData or JSON
             let formData;
-            if (req.headers['content-type']?.includes('application/json')) {
-                formData = req.body;
-            } else {
-                // Handle FormData from the frontend
-                formData = req.body;
-            }
-
-            console.log('Received form data:', formData);
-
-            // Map form fields to expected names
-            const toolName = formData.name || formData.toolName;
-            const toolDescription = formData.description || formData.toolDescription;
-            const toolWebsite = formData.url || formData.toolWebsite;
-            const toolCategory = formData.category || formData.toolCategory;
-            const submitterName = formData.submitterName || formData.submitter_name;
-            const submitterEmail = formData.submitterEmail || formData.submitter_email;
-
-            // Basic validation
-            if (!toolName || !toolDescription || !toolWebsite || !toolCategory || !submitterName) {
-                console.log('Validation failed:', { toolName, toolDescription, toolWebsite, toolCategory, submitterName });
-                return res.status(400).json({ 
-                    success: false, 
-                    message: 'All required fields must be filled' 
-                });
-            }
-
+            
             try {
+                // Parse FormData or JSON body
+                if (req.headers['content-type']?.includes('multipart/form-data')) {
+                    // This is FormData - Vercel automatically parses it to req.body
+                    formData = req.body;
+                } else if (req.headers['content-type']?.includes('application/json')) {
+                    formData = req.body;
+                } else {
+                    // Default handling
+                    formData = req.body;
+                }
+
+                console.log('Content-Type:', req.headers['content-type']);
+                console.log('Raw body:', req.body);
+                
+                // Extract form fields with multiple possible field names
+                const toolName = formData.name || formData.toolName || formData['tool-name'];
+                const toolDescription = formData.description || formData.toolDescription || formData['tool-description'];
+                const toolWebsite = formData.url || formData.toolWebsite || formData['tool-website'] || formData['tool-url'];
+                const toolCategory = formData.category || formData.toolCategory || formData['tool-category'];
+                const submitterName = formData.submitterName || formData['submitter-name'];
+                const submitterEmail = formData.submitterEmail || formData['submitter-email'];
+
+                console.log('Parsed fields:', {
+                    toolName,
+                    toolDescription,
+                    toolWebsite,
+                    toolCategory,
+                    submitterName,
+                    submitterEmail
+                });
+
+                // Basic validation
+                if (!toolName || !toolDescription || !toolWebsite || !toolCategory || !submitterName) {
+                    console.log('Validation failed - missing fields');
+                    return res.status(400).json({ 
+                        success: false, 
+                        message: 'All required fields must be filled',
+                        received: { toolName, toolDescription, toolWebsite, toolCategory, submitterName }
+                    });
+                }
+
                 // Insert new tool into database
                 const { data: tool, error: toolError } = await supabase
                     .from('ai_tools')
@@ -102,11 +117,11 @@ export default async function handler(req, res) {
                     toolId: tool.id
                 });
                 
-            } catch (error) {
-                console.error('Database error:', error);
-                return res.status(500).json({ 
+            } catch (parseError) {
+                console.error('Form parsing error:', parseError);
+                return res.status(400).json({ 
                     success: false, 
-                    message: 'Database error occurred while submitting tool' 
+                    message: 'Error parsing form data: ' + parseError.message 
                 });
             }
         }

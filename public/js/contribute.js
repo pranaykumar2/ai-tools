@@ -228,9 +228,19 @@ document.addEventListener('DOMContentLoaded', () => {
         formData.set('features', features.join(','));
         
         // Send data to server
+        const formObject = {};
+        for (let [key, value] of formData.entries()) {
+            formObject[key] = value;
+        }
+
+        console.log('Sending form data:', formObject);
+
         fetch('/api/tools', {
             method: 'POST',
-            body: formData
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(formObject)
         })
         .then(response => {
             if (!response.ok) {
