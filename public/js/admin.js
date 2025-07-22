@@ -160,7 +160,8 @@ document.addEventListener('DOMContentLoaded', () => {
      */
     function fetchStatistics() {
         // In a real app, this would be an API call
-        fetch('/api/admin/statistics')
+        // Fetch dashboard statistics
+        fetch('/api/admin/stats')
             .then(response => {
                 if (!response.ok) {
                     return Promise.resolve({
