@@ -1,7 +1,7 @@
 {
-  "name": "ai-tools-website",
+  "name": "ai-tools-main",
   "version": "1.0.0",
-  "description": "A curated collection of AI tools website",
+  "description": "AI Tools website - Main public application",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

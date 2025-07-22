@@ -3,13 +3,7 @@
     "api/tools.js": {
       "maxDuration": 15
     },
-    "api/admin.js": {
-      "maxDuration": 15
-    },
     "api/contact.js": {
-      "maxDuration": 10
-    },
-    "api/reels.js": {
       "maxDuration": 10
     }
   },
@@ -29,38 +23,6 @@
     {
       "source": "/reels",
       "destination": "/public/reels.html"
-    },
-    {
-      "source": "/admin",
-      "destination": "/public/admin/index.html"
-    },
-    {
-      "source": "/admin/submissions",
-      "destination": "/public/admin/submissions.html"
-    },
-    {
-      "source": "/api/tools/submit",
-      "destination": "/api/tools"
-    },
-    {
-      "source": "/api/admin/tools/(.*)",
-      "destination": "/api/admin"
-    },
-    {
-      "source": "/api/admin/submissions",
-      "destination": "/api/admin"
-    },
-    {
-      "source": "/api/admin/notifications/(.*)",
-      "destination": "/api/admin"
-    },
-    {
-      "source": "/api/admin/stats",
-      "destination": "/api/admin"
-    },
-    {
-      "source": "/api/admin/categories",
-      "destination": "/api/admin"
     }
   ],
   "headers": [

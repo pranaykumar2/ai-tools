@@ -95,22 +95,6 @@ export default async function handler(req, res) {
                     });
                 }
 
-                // Create notification for admin
-                try {
-                    await supabase
-                        .from('notifications')
-                        .insert([{
-                            type: 'new_tool',
-                            message: `New tool submitted: ${toolName} by ${submitterName}`,
-                            tool_id: tool.id,
-                            read: false,
-                            created_at: new Date().toISOString()
-                        }]);
-                } catch (notificationError) {
-                    console.error('Notification error:', notificationError);
-                    // Don't fail the request if notification creation fails
-                }
-
                 return res.json({ 
                     success: true, 
                     message: 'Tool submitted successfully! It will be reviewed by our team.',
