@@ -24,63 +24,91 @@ export default async function handler(req, res) {
     try {
         const { pathname } = new URL(req.url, `http://${req.headers.host}`);
         
-        // Handle /api/tools/submit endpoint
+        // Handle POST requests (tool submission)
         if (req.method === 'POST') {
-            const { toolName, toolDescription, toolWebsite, toolCategory, submitterName } = req.body;
+            // Handle form data - check if it's FormData or JSON
+            let formData;
+            if (req.headers['content-type']?.includes('application/json')) {
+                formData = req.body;
+            } else {
+                // Handle FormData from the frontend
+                formData = req.body;
+            }
+
+            console.log('Received form data:', formData);
+
+            // Map form fields to expected names
+            const toolName = formData.name || formData.toolName;
+            const toolDescription = formData.description || formData.toolDescription;
+            const toolWebsite = formData.url || formData.toolWebsite;
+            const toolCategory = formData.category || formData.toolCategory;
+            const submitterName = formData.submitterName || formData.submitter_name;
+            const submitterEmail = formData.submitterEmail || formData.submitter_email;
 
             // Basic validation
             if (!toolName || !toolDescription || !toolWebsite || !toolCategory || !submitterName) {
+                console.log('Validation failed:', { toolName, toolDescription, toolWebsite, toolCategory, submitterName });
                 return res.status(400).json({ 
                     success: false, 
-                    message: 'All fields are required' 
+                    message: 'All required fields must be filled' 
                 });
             }
 
-            // Insert new tool into database
-            const { data: tool, error: toolError } = await supabase
-                .from('ai_tools')
-                .insert([{
-                    tool_name: toolName,
-                    tool_description: toolDescription,
-                    tool_website: toolWebsite,
-                    tool_category: toolCategory,
-                    submitter_name: submitterName,
-                    approved: false,
-                    status: 'pending',
-                    created_at: new Date().toISOString()
-                }])
-                .select()
-                .single();
+            try {
+                // Insert new tool into database
+                const { data: tool, error: toolError } = await supabase
+                    .from('ai_tools')
+                    .insert([{
+                        tool_name: toolName,
+                        tool_description: toolDescription,
+                        tool_website: toolWebsite,
+                        tool_category: toolCategory,
+                        submitter_name: submitterName,
+                        submitter_email: submitterEmail,
+                        approved: false,
+                        status: 'pending',
+                        created_at: new Date().toISOString()
+                    }])
+                    .select()
+                    .single();
 
-            if (toolError) {
-                console.error('Tool insert error:', toolError);
+                if (toolError) {
+                    console.error('Tool insert error:', toolError);
+                    return res.status(500).json({ 
+                        success: false, 
+                        message: 'Failed to submit tool: ' + toolError.message 
+                    });
+                }
+
+                // Create notification for admin
+                try {
+                    await supabase
+                        .from('notifications')
+                        .insert([{
+                            type: 'new_tool',
+                            message: `New tool submitted: ${toolName} by ${submitterName}`,
+                            tool_id: tool.id,
+                            read: false,
+                            created_at: new Date().toISOString()
+                        }]);
+                } catch (notificationError) {
+                    console.error('Notification error:', notificationError);
+                    // Don't fail the request if notification creation fails
+                }
+
+                return res.json({ 
+                    success: true, 
+                    message: 'Tool submitted successfully! It will be reviewed by our team.',
+                    toolId: tool.id
+                });
+                
+            } catch (error) {
+                console.error('Database error:', error);
                 return res.status(500).json({ 
                     success: false, 
-                    message: 'Failed to submit tool' 
+                    message: 'Database error occurred while submitting tool' 
                 });
             }
-
-            // Create notification for admin
-            const { error: notificationError } = await supabase
-                .from('notifications')
-                .insert([{
-                    type: 'new_tool',
-                    message: `New tool submitted: ${toolName} by ${submitterName}`,
-                    tool_id: tool.id,
-                    read: false,
-                    created_at: new Date().toISOString()
-                }]);
-
-            if (notificationError) {
-                console.error('Notification error:', notificationError);
-                // Don't fail the request if notification creation fails
-            }
-
-            return res.json({ 
-                success: true, 
-                message: 'Tool submitted successfully! It will be reviewed by our team.',
-                toolId: tool.id
-            });
         }
         
         // Handle /api/tools endpoint (GET approved tools)
@@ -120,95 +148,7 @@ export default async function handler(req, res) {
             return res.json({ success: true, tools: transformedTools });
         }
 
-        if (req.method === 'POST') {
-            // Submit a new tool
-            const {
-                name,
-                description,
-                url,
-                category,
-                pricing,
-                features,
-                tags,
-                imageUrl,
-                reelUrl,
-                submitterName,
-                submitterEmail
-            } = req.body;
-
-            // Basic validation
-            if (!name || !description || !url || !category || !pricing) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Missing required fields'
-                });
-            }
-
-            // Process features and tags
-            const featuresList = features ? (typeof features === 'string' ? features.split(',').map(f => f.trim()) : features) : [];
-            const tagsList = tags ? (typeof tags === 'string' ? tags.split(',').map(t => t.trim()) : tags) : [];
-
-            // Normalize pricing type to match database constraints
-            const normalizePricing = (pricing) => {
-                const pricingMap = {
-                    'free': 'Free',
-                    'freemium': 'Freemium', 
-                    'paid': 'Pro',
-                    'pro': 'Pro'
-                };
-                return pricingMap[pricing.toLowerCase()] || 'Free';
-            };
-
-            const normalizedPricing = normalizePricing(pricing);
-
-            // Default image if none provided
-            const imagePath = imageUrl || 'https://images.unsplash.com/photo-1677442135146-9bab59b7a31c?ixlib=rb-4.0.3&auto=format&fit=crop&w=700&q=80';
-
-            // Insert into Supabase
-            const { data: newTool, error: supabaseError } = await supabase
-                .from('ai_tools')
-                .insert({
-                    tool_name: name,
-                    tool_description: description,
-                    tool_category: category,
-                    tool_url: url,
-                    tool_image: imagePath,
-                    pricing_type: normalizedPricing,
-                    tool_tags: [...featuresList, ...tagsList],
-                    contributor_name: submitterName,
-                    status: 'pending',
-                    verified: false,
-                    rating: 1
-                })
-                .select()
-                .single();
-
-            if (supabaseError) {
-                console.error('Supabase error:', supabaseError);
-                return res.status(500).json({ 
-                    success: false, 
-                    message: 'Error submitting tool' 
-                });
-            }
-
-            // If reel URL was provided, add to reels table
-            if (reelUrl && newTool) {
-                await supabase
-                    .from('reels')
-                    .insert({
-                        tool_id: newTool.id,
-                        tool_name: name,
-                        url: reelUrl
-                    });
-            }
-
-            return res.json({ 
-                success: true, 
-                message: 'Tool submitted successfully and pending review',
-                toolId: newTool.id
-            });
-        }
-
+        // If no method matches
         return res.status(405).json({ 
             success: false, 
             message: 'Method not allowed' 
