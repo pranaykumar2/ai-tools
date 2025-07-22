@@ -21,10 +21,20 @@ vercel --prod
 echo.
 echo ✅ Deployment complete!
 echo.
-echo 🎯 Next steps:
-echo 1. Set environment variables in Vercel dashboard
-echo 2. Test your deployment
-echo 3. Configure custom domain (optional)
+echo ⚠️  IMPORTANT: Environment Variables Setup Required
 echo.
-echo 📚 See VERCEL_DEPLOYMENT.md for detailed instructions
+echo 🎯 Next steps:
+echo 1. Go to https://vercel.com/dashboard
+echo 2. Select your project → Settings → Environment Variables
+echo 3. Add these variables for Production, Preview, and Development:
+echo    - SUPABASE_URL
+echo    - SUPABASE_ANON_KEY  
+echo    - SUPABASE_SERVICE_KEY
+echo    - EMAIL_USER
+echo    - EMAIL_PASS
+echo    - CONTACT_EMAIL
+echo.
+echo 4. Redeploy after setting variables: vercel --prod
+echo.
+echo 📚 See VERCEL_FIX.md for detailed instructions with your actual values
 pause
